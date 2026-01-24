@@ -8,7 +8,7 @@ export function ImageUploader() {
     const { state, dispatch } = useBuilder();
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
-        const remainingSlots = 20 - state.images.length;
+        const remainingSlots = 30 - state.images.length;
         const filesToAdd = acceptedFiles.slice(0, remainingSlots);
         filesToAdd.forEach(file => {
             dispatch({ type: 'ADD_IMAGE', payload: file });
@@ -18,7 +18,7 @@ export function ImageUploader() {
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] },
-        maxFiles: 20 - state.images.length,
+        maxFiles: 30 - state.images.length,
     });
 
     const removeImage = (id: string) => {
@@ -28,7 +28,7 @@ export function ImageUploader() {
     return (
         <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-100">상품 이미지 업로드</h3>
-            <p className="text-sm text-gray-400">최대 20장까지 업로드 가능합니다 ({state.images.length}/20)</p>
+            <p className="text-sm text-gray-400">최대 30장까지 업로드 가능합니다 ({state.images.length}/30)</p>
 
             <div
                 {...getRootProps()}
@@ -37,10 +37,10 @@ export function ImageUploader() {
                         ? 'border-emerald-400 bg-emerald-500/10'
                         : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
                     }
-          ${state.images.length >= 20 ? 'opacity-50 cursor-not-allowed' : ''}
+          ${state.images.length >= 30 ? 'opacity-50 cursor-not-allowed' : ''}
         `}
             >
-                <input {...getInputProps()} disabled={state.images.length >= 20} />
+                <input {...getInputProps()} disabled={state.images.length >= 30} />
                 <div className="space-y-2">
                     <div className="text-4xl">📷</div>
                     {isDragActive ? (

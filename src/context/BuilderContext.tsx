@@ -34,7 +34,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         case 'SET_IMAGES':
             return { ...state, images: action.payload };
         case 'ADD_IMAGE':
-            if (state.images.length >= 20) return state;
+            if (state.images.length >= 30) return state;
             const newImage: ImageUpload = {
                 id: uuidv4(),
                 file: action.payload,

@@ -108,7 +108,7 @@ function EditableText({
     className?: string;
     placeholder?: string;
     multiline?: boolean;
-    tag?: 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'div';
+    tag?: 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'div';
 }) {
     const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
         const newValue = e.currentTarget.innerText;
@@ -436,13 +436,81 @@ function SummaryCard({ productData, variant }: ModuleProps) {
 
 // ... ReviewSummary, OriginCertificate (unchanged, just short code for brevity in update if needed, but I must provide full file content for write_to_file usually, 
 // wait, I can use replace or just write fully. Write full is safer to avoid context loss on large refactor.)
-function ReviewSummary({ productData, variant }: ModuleProps) {
-    const content = productData.reviewSummary || '리뷰 요약이 AI에 의해 자동 생성됩니다.';
+function ReviewSummary({ productData, images, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
-    if (variant === 'A') {
-        return (<div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6"><h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">⭐ 리뷰 요약</h2><div className="bg-white p-4 rounded-lg border border-purple-200 text-gray-700 shadow-sm">{content}</div></div>)
-    }
-    return (<div className={`${styles.bg} ${styles.container} p-8 text-center`}><div className={`text-2xl mb-2 ${styles.accent}`}>★★★★★</div><p className={`${styles.text} ${styles.font} leading-relaxed`}>{content}</p></div>);
+
+    // Default reviews if no data
+    const defaultReviews = [
+        { title: '정말 달아요!', text: '아이들이 너무 좋아해요. 당도가 정말 높네요.', imgIdx: 5 },
+        { title: '신선하네요', text: '방금 딴 것처럼 싱싱해서 놀랐어요.', imgIdx: 6 },
+        { title: '포장 꼼꼼!', text: '하나도 안 터지고 잘 왔습니다. 번창하세요.', imgIdx: 7 }
+    ];
+
+    const getReviewData = (index: number) => {
+        return {
+            title: (data?.[`title${index + 1}`] as string) || defaultReviews[index].title,
+            text: (data?.[`text${index + 1}`] as string) || defaultReviews[index].text,
+            imgIdx: typeof data?.[`imageIndex${index + 1}`] === 'number' ? (data[`imageIndex${index + 1}`] as number) : defaultReviews[index].imgIdx
+        };
+    };
+
+    const handleUpdateText = (index: number, field: 'title' | 'text') => (val: string) => {
+        onUpdateData && onUpdateData({ [`${field}${index + 1}`]: val });
+    };
+
+    const handleImageDrop = (index: number) => (idx: number) => {
+        onUpdateData && onUpdateData({ [`imageIndex${index + 1}`]: idx });
+    };
+
+    return (
+        <div className={`${styles.bg} ${styles.container} p-10 overflow-hidden`}>
+            <div className="text-center mb-10">
+                <p className={`${styles.accent} text-[13px] font-bold tracking-[0.2em] uppercase mb-2`}>Real Reviews</p>
+                <h2 className={`${styles.text} text-3xl font-black mb-3 break-keep`}>고객이 직접 증명하는 품질</h2>
+                <div className="flex justify-center text-yellow-500 text-2xl tracking-tight">★★★★★</div>
+            </div>
+
+            {/* Fixed 3-column grid - NO SCROLL */}
+            <div className="grid grid-cols-3 gap-4">
+                {[0, 1, 2].map(i => {
+                    const review = getReviewData(i);
+                    const img = images[review.imgIdx];
+                    const imgSrc = img?.transformedUrl || img?.previewUrl;
+
+                    return (
+                        <div key={i} className={`flex flex-col rounded-[24px] overflow-hidden border border-gray-100 shadow-sm transition-all hover:shadow-lg ${styles.bg === 'bg-white' ? 'bg-white' : 'bg-white/10 backdrop-blur-md'}`}>
+                            <DroppableImageZone onDrop={handleImageDrop(i)} className="relative aspect-square bg-gray-50">
+                                {img ? (
+                                    <img src={imgSrc} className="w-full h-full object-cover" alt="리뷰 이미지" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1 px-2">
+                                        <span className="text-2xl">📸</span>
+                                        <span className="text-[10px] font-bold text-center leading-tight">사진 드래그</span>
+                                    </div>
+                                )}
+                            </DroppableImageZone>
+                            <div className="p-4 flex-1 flex flex-col">
+                                <div className="text-yellow-500 text-[10px] mb-2 tracking-tighter">★★★★★</div>
+                                <EditableText
+                                    value={review.title}
+                                    onChange={handleUpdateText(i, 'title')}
+                                    className={`${styles.text} font-bold text-sm mb-2 block text-left break-keep leading-snug h-10 overflow-hidden line-clamp-2`}
+                                    tag="h4"
+                                />
+                                <EditableText
+                                    value={review.text}
+                                    onChange={handleUpdateText(i, 'text')}
+                                    className={`${styles.text} text-[11px] opacity-70 leading-[1.5] text-left break-keep h-20 overflow-hidden line-clamp-4`}
+                                    tag="p"
+                                    multiline
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 function OriginCertificate({ productData, variant }: ModuleProps) {
     const styles = getThemeStyles(variant);
