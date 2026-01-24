@@ -68,35 +68,13 @@ export function ProductInputForm() {
                     />
                 </div>
 
-                <TextareaField
-                    label="보관법"
-                    value={productData.storageMethod}
-                    onChange={(v) => updateField('storageMethod', v)}
-                    placeholder="예: 냉장보관 시 7일간 신선하게 보관 가능"
-                    rows={2}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                    <InputField
-                        label="CS 전화번호"
-                        value={productData.csPhone}
-                        onChange={(v) => updateField('csPhone', v)}
-                        placeholder="예: 1588-0000"
-                    />
-                    <InputField
-                        label="CS 이메일"
-                        value={productData.csEmail}
-                        onChange={(v) => updateField('csEmail', v)}
-                        placeholder="예: cs@example.com"
-                    />
-                </div>
-
                 <InputField
-                    label="이벤트 문구 (선택)"
-                    value={productData.eventText || ''}
-                    onChange={(v) => updateField('eventText', v)}
-                    placeholder="예: 첫 구매 20% 할인!"
+                    label="CS 전화번호"
+                    value={productData.csPhone}
+                    onChange={(v) => updateField('csPhone', v)}
+                    placeholder="예: 1588-0000"
                 />
+
             </div>
         </div>
     );

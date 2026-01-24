@@ -54,12 +54,24 @@ export function ImageUploader() {
             {state.images.length > 0 && (
                 <div className="grid grid-cols-5 gap-3">
                     {state.images.map((img, index) => (
-                        <div key={img.id} className="relative group aspect-square">
+                        <div
+                            key={img.id}
+                            className="relative group aspect-square cursor-grab active:cursor-grabbing"
+                            draggable
+                            onDragStart={(e) => {
+                                e.dataTransfer.setData('imageIndex', index.toString());
+                                e.dataTransfer.effectAllowed = 'copy';
+                            }}
+                        >
                             <img
                                 src={img.transformedUrl || img.previewUrl}
                                 alt={`상품 이미지 ${index + 1}`}
-                                className="w-full h-full object-cover rounded-lg"
+                                className="w-full h-full object-cover rounded-lg pointer-events-none"
                             />
+                            {/* Image index number */}
+                            <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-bold">
+                                {index}
+                            </div>
                             {img.isProcessing && (
                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
                                     <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full" />

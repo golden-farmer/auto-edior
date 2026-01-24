@@ -9,8 +9,12 @@ export function ActionBar() {
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
     const handleGenerateAI = async () => {
-        if (!state.productData.productName) {
-            alert('상품명을 입력해주세요.');
+        const missingFields = [];
+        if (!state.productData.productName) missingFields.push('상품명');
+        // if (!state.productData.productDescription) missingFields.push('상품 설명'); // Optional?
+
+        if (missingFields.length > 0) {
+            alert(`다음 항목을 입력해주세요:\n- ${missingFields.join('\n- ')}`);
             return;
         }
 
@@ -50,60 +54,6 @@ export function ActionBar() {
         } finally {
             setIsGeneratingAI(false);
         }
-    };
-
-    const handleTransformImages = async () => {
-        if (state.images.length === 0) {
-            alert('이미지를 업로드해주세요.');
-            return;
-        }
-
-        dispatch({ type: 'SET_GENERATING', payload: true });
-
-        for (let i = 0; i < state.images.length; i++) {
-            const image = state.images[i];
-            if (image.transformedUrl) continue; // Skip already transformed
-
-            dispatch({ type: 'UPDATE_IMAGE', payload: { id: image.id, data: { isProcessing: true } } });
-            dispatch({
-                type: 'SET_PROGRESS', payload: {
-                    progress: ((i + 1) / state.images.length) * 100,
-                    message: `이미지 변환 중 (${i + 1}/${state.images.length})...`
-                }
-            });
-
-            try {
-                // Convert to base64
-                const base64 = await fileToBase64(image.file!);
-
-                const response = await fetch('/api/transform', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageBase64: base64 }),
-                });
-
-                const data = await response.json();
-
-                if (data.transformedImage) {
-                    dispatch({
-                        type: 'UPDATE_IMAGE',
-                        payload: {
-                            id: image.id,
-                            data: {
-                                transformedUrl: `data:image/png;base64,${data.transformedImage}`,
-                                isProcessing: false
-                            }
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Transform error:', error);
-                dispatch({ type: 'UPDATE_IMAGE', payload: { id: image.id, data: { isProcessing: false } } });
-            }
-        }
-
-        dispatch({ type: 'SET_GENERATING', payload: false });
-        dispatch({ type: 'SET_PROGRESS', payload: { progress: 100, message: '이미지 변환 완료!' } });
     };
 
     const handleDownload = async () => {
@@ -173,14 +123,6 @@ export function ActionBar() {
                             <span>✨</span>
                         )}
                         AI 텍스트 생성
-                    </button>
-
-                    <button
-                        onClick={handleTransformImages}
-                        disabled={state.isGenerating || state.images.length === 0}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                    >
-                        🎨 이미지 변환
                     </button>
 
                     <button

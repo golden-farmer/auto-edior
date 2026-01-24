@@ -34,8 +34,15 @@ export function ModuleList() {
     const { state, dispatch } = useBuilder();
     const { modules, images } = state;
 
+    // Sort modules by order for display
+    const sortedModules = [...modules].sort((a, b) => a.order - b.order);
+
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -44,9 +51,9 @@ export function ModuleList() {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (over && active.id !== over.id) {
-            const oldIndex = modules.findIndex((m) => m.id === active.id);
-            const newIndex = modules.findIndex((m) => m.id === over.id);
-            const newModules = arrayMove(modules, oldIndex, newIndex).map((m, i) => ({
+            const oldIndex = sortedModules.findIndex((m) => m.id === active.id);
+            const newIndex = sortedModules.findIndex((m) => m.id === over.id);
+            const newModules = arrayMove(sortedModules, oldIndex, newIndex).map((m, i) => ({
                 ...m,
                 order: i,
             }));
@@ -90,10 +97,10 @@ export function ModuleList() {
             </div>
             <p className="text-sm text-gray-400">드래그하여 순서를 변경하고, 화살표를 눌러 내용을 수정하세요</p>
 
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={modules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+            <DndContext id="dnd-module-list" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={sortedModules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
-                        {modules.map((module) => (
+                        {sortedModules.map((module) => (
                             <SortableModuleItem
                                 key={module.id}
                                 module={module}
@@ -139,7 +146,7 @@ function SortableModuleItem({
     const categoryColor = CATEGORY_COLORS[module.category];
 
     // Modules that support editing
-    const hasEditableFields = ['hooking-banner', 'benefit-point-1', 'benefit-point-2', 'benefit-point-3', 'summary-card'].includes(module.type);
+    const hasEditableFields = ['hooking-banner', 'benefit-point-1', 'benefit-point-2', 'benefit-point-3', 'summary-card', 'event-highlight', 'farmer-story'].includes(module.type);
 
     return (
         <div
@@ -229,25 +236,39 @@ function ModuleEditForm({
                 <>
                     <div>
                         <label className="block text-xs text-gray-400 mb-1">메인 카피</label>
-                        <input
-                            type="text"
+                        <textarea
                             value={(module.data.mainCopy as string) || ''}
                             onChange={(e) => handleChange('mainCopy', e.target.value)}
                             placeholder="예: 신선한 과일"
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none"
+                            rows={2}
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none resize-none"
                         />
                     </div>
                     <div>
                         <label className="block text-xs text-gray-400 mb-1">서브 카피</label>
-                        <input
-                            type="text"
+                        <textarea
                             value={(module.data.subCopy as string) || ''}
                             onChange={(e) => handleChange('subCopy', e.target.value)}
                             placeholder="예: 산지직송 직배송"
-                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none"
+                            rows={2}
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none resize-none"
                         />
                     </div>
                 </>
+            )}
+
+            {/* Event Highlight Specifics */}
+            {module.type === 'event-highlight' && (
+                <div>
+                    <label className="block text-xs text-gray-400 mb-1">이벤트 문구</label>
+                    <textarea
+                        value={(module.data.eventText as string) || ''}
+                        onChange={(e) => handleChange('eventText', e.target.value)}
+                        placeholder="예: 첫 구매 20% 할인!"
+                        rows={2}
+                        className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none resize-none"
+                    />
+                </div>
             )}
 
             {/* Benefit Points Specifics */}
@@ -276,8 +297,62 @@ function ModuleEditForm({
                 </>
             )}
 
+            {/* Farmer Story Specifics */}
+            {module.type === 'farmer-story' && (
+                <>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">농부 이름</label>
+                        <input
+                            type="text"
+                            value={(module.data.farmerName as string) || ''}
+                            onChange={(e) => handleChange('farmerName', e.target.value)}
+                            placeholder="홍길동 농부"
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">스토리 문구</label>
+                        <textarea
+                            value={(module.data.storyText as string) || ''}
+                            onChange={(e) => handleChange('storyText', e.target.value)}
+                            placeholder="정직하게 키운 농산물만 보냅니다."
+                            rows={3}
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none resize-none"
+                        />
+                    </div>
+                </>
+            )}
+
             {module.type === 'summary-card' && (
                 <div className="text-xs text-gray-500">편집 가능한 항목이 없습니다 (자동 연동)</div>
+            )}
+
+            {/* Comparison Table Specifics */}
+            {module.type === 'comparison-table' && (
+                <>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">우리 상품 이미지 (번호)</label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={(module.data.ourImageIndex as number) ?? 0}
+                            onChange={(e) => handleChange('ourImageIndex', parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1">경쟁사 상품 이미지 (번호)</label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={(module.data.competitorImageIndex as number) ?? 1}
+                            onChange={(e) => handleChange('competitorImageIndex', parseInt(e.target.value) || 0)}
+                            placeholder="1"
+                            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-emerald-500 outline-none"
+                        />
+                    </div>
+                </>
             )}
         </>
     );

@@ -30,7 +30,11 @@ export function PreviewPanel() {
         .sort((a, b) => a.order - b.order);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -51,6 +55,8 @@ export function PreviewPanel() {
             reorderedActiveModules.forEach((m, index) => {
                 updates.set(m.id, activeOrders[index]);
             });
+
+            console.log('Reordering Preview:', updates);
 
             const newModules = state.modules.map(m => {
                 if (updates.has(m.id)) {
@@ -76,7 +82,7 @@ export function PreviewPanel() {
                 </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-900/50">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-900/50 [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-[3px] hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
                 <div
                     ref={previewRef}
                     className="mx-auto bg-white shadow-2xl overflow-hidden"
@@ -84,7 +90,7 @@ export function PreviewPanel() {
                     id="preview-container"
                 >
                     {activeModules.length > 0 ? (
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <DndContext id="dnd-preview-panel" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={activeModules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
                                 {activeModules.map((module) => (
                                     <SortablePreviewItem
@@ -152,11 +158,21 @@ function SortablePreviewItem({
         <div
             ref={setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
-            className={`module-item relative group/preview cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-80 shadow-2xl scale-[1.02]' : ''}`}
+            className={`module-item relative group/preview ${isDragging ? 'opacity-80 shadow-2xl scale-[1.02] z-50' : 'hover:ring-2 hover:ring-emerald-500/50'} !touch-action-auto`}
             data-module-id={module.id}
         >
+            {/* Drag Handle - Top Right */}
+            <div
+                {...listeners}
+                {...attributes}
+                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-emerald-600 text-white rounded cursor-grab active:cursor-grabbing opacity-0 group-hover/preview:opacity-100 transition-opacity z-50 backdrop-blur-sm"
+                title="이동하려면 드래그하세요"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                </svg>
+            </div>
+
             <ModuleRenderer
                 module={module}
                 productData={productData}

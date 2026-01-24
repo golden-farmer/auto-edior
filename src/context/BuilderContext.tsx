@@ -22,7 +22,7 @@ type BuilderAction =
 
 const initialState: BuilderState = {
     images: [],
-    modules: DEFAULT_MODULES.map((m, i) => ({ ...m, id: uuidv4() })),
+    modules: DEFAULT_MODULES.map((m, i) => ({ ...m, id: `default-module-${i}` })),
     productData: DEFAULT_PRODUCT_DATA,
     isGenerating: false,
     progress: 0,
