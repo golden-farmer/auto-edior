@@ -3,3 +3,4 @@ export { ProductInputForm } from './ProductInputForm';
 export { ModuleList } from './ModuleList';
 export { PreviewPanel } from './PreviewPanel';
 export { ActionBar } from './ActionBar';
+export { ThumbnailSelector } from './ThumbnailSelector';
