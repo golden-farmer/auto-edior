@@ -2,6 +2,24 @@
 
 export type ModuleCategory = 'intro' | 'trust' | 'benefits' | 'detail' | 'service' | 'closing';
 
+// Font Mix-Match System Types
+export type FontType = 'Noto Sans KR' | 'Do Hyeon' | 'Nanum Gothic' | 'Nanum Myeongjo' | 'Gowun Dodum';
+export type TextScale = 'small' | 'normal' | 'large';
+
+export const FONT_OPTIONS: { value: FontType; label: string; description: string }[] = [
+    { value: 'Noto Sans KR', label: '노토산스', description: '깔끔' },
+    { value: 'Do Hyeon', label: '도현체', description: '강조' },
+    { value: 'Nanum Gothic', label: '나눔고딕', description: '기본' },
+    { value: 'Nanum Myeongjo', label: '나눔명조', description: '고급' },
+    { value: 'Gowun Dodum', label: '고운돋움', description: '부드러움' },
+];
+
+export const TEXT_SCALE_VALUES: Record<TextScale, number> = {
+    small: 0.8,
+    normal: 1.0,
+    large: 1.2,
+};
+
 export type ModuleType =
     // Intro modules
     | 'hooking-banner'
@@ -9,7 +27,6 @@ export type ModuleType =
     | 'summary-card'
     // Trust modules
     | 'review-summary'
-    | 'origin-certificate'
     | 'farmer-story'
     // Benefits modules
     | 'benefit-point-1'
@@ -51,14 +68,7 @@ export interface ImageUpload {
 export interface ProductData {
     productName: string;
     productDescription: string;
-    origin: string;
-    farmerName: string;
-    price: string;
-    sweetness: string;
-    size: string;
-    storageMethod: string;
     csPhone: string;
-    csEmail: string;
     eventText?: string;
     reviewSummary?: string; // AI generated
     cautionText?: string; // AI generated
@@ -71,6 +81,14 @@ export interface BuilderState {
     isGenerating: boolean;
     progress: number;
     progressMessage: string;
+    // Font Mix-Match System
+    titleFont: FontType;
+    bodyFont: FontType;
+    textScale: TextScale;
+    // Color Palette
+    colorPalette: string;
+    // Thumbnail Selection
+    selectedThumbnailIds: string[];
 }
 
 export const DEFAULT_MODULES: Omit<ModuleConfig, 'id'>[] = [
@@ -79,8 +97,7 @@ export const DEFAULT_MODULES: Omit<ModuleConfig, 'id'>[] = [
     { type: 'hero-image', category: 'intro', name: 'Hero Image', nameKo: '히어로 이미지', isActive: true, order: 2, data: {}, variant: 'A' },
     { type: 'summary-card', category: 'intro', name: '3-Second Summary', nameKo: '3초 요약 카드', isActive: true, order: 3, data: {}, variant: 'A' },
     { type: 'review-summary', category: 'trust', name: 'Review Summary', nameKo: '리뷰 요약', isActive: true, order: 4, data: {}, variant: 'A' },
-    { type: 'origin-certificate', category: 'trust', name: 'Origin Certificate', nameKo: '산지 인증서', isActive: true, order: 5, data: {}, variant: 'A' },
-    { type: 'farmer-story', category: 'trust', name: 'Farmer Story', nameKo: '농부 스토리', isActive: true, order: 6, data: {}, variant: 'A' },
+    { type: 'farmer-story', category: 'trust', name: 'Farmer Story', nameKo: '농부 스토리', isActive: true, order: 5, data: {}, variant: 'A' },
     { type: 'benefit-point-1', category: 'benefits', name: 'Benefit Point 1', nameKo: '소구점 1', isActive: true, order: 7, data: {}, variant: 'A' },
     { type: 'benefit-point-2', category: 'benefits', name: 'Benefit Point 2', nameKo: '소구점 2', isActive: true, order: 8, data: {}, variant: 'A' },
     { type: 'benefit-point-3', category: 'benefits', name: 'Benefit Point 3', nameKo: '소구점 3', isActive: true, order: 9, data: {}, variant: 'A' },
@@ -97,12 +114,5 @@ export const DEFAULT_MODULES: Omit<ModuleConfig, 'id'>[] = [
 export const DEFAULT_PRODUCT_DATA: ProductData = {
     productName: '',
     productDescription: '',
-    origin: '',
-    farmerName: '',
-    price: '',
-    sweetness: '',
-    size: '',
-    storageMethod: '',
     csPhone: '',
-    csEmail: '',
 };

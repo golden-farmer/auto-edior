@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useBuilder } from '@/context/BuilderContext';
-import { ModuleConfig, ProductData, ImageUpload } from '@/types';
+import { ModuleConfig, ProductData, ImageUpload, TEXT_SCALE_VALUES, TextScale } from '@/types';
 
 // Module renderer that displays the appropriate module based on type
 // Updated to accept onUpdateData
@@ -25,7 +25,6 @@ export function ModuleRenderer({
         case 'hero-image': return <HeroImage {...commonProps} />;
         case 'summary-card': return <SummaryCard {...commonProps} />;
         case 'review-summary': return <ReviewSummary {...commonProps} />;
-        case 'origin-certificate': return <OriginCertificate {...commonProps} />;
         case 'farmer-story': return <FarmerStory {...commonProps} />;
         case 'benefit-point-1':
         case 'benefit-point-2':
@@ -54,19 +53,70 @@ interface ModuleProps {
     onUpdateData?: (data: Record<string, unknown>) => void;
 }
 
-// Theme Helper
+// Theme Helper - 5 Layout Templates
+// Type A: 더 미니멀 (Apple Style) - 배경 흰색, 여백 중심
+// Type B: 솔리드 블록 - 제목 배경에 Primary Color 꽉 채움
+// Type C: 라운드 카드 - 연한 배경 위 둥근 흰색 박스 + 그림자
+// Type D: 감성 편지 - 1px 실선 테두리 + 손글씨 폰트
+// Type E: 보더 라인 - 전체를 감싸는 이중 테두리, 중앙 정렬
 const getThemeStyles = (variant: string) => {
     switch (variant) {
-        case 'B': return { bg: 'bg-gray-900', text: 'text-white', accent: 'text-yellow-400', border: 'border-yellow-400', container: 'border-b-8 border-yellow-400' };
-        case 'C': return { bg: 'bg-white', text: 'text-gray-800', accent: 'text-gray-400', border: 'border-gray-200', font: 'font-serif', container: 'border-b border-gray-100' };
-        case 'D': return { bg: 'bg-rose-50', text: 'text-rose-900', accent: 'text-rose-500', border: 'border-rose-200', container: 'rounded-xl m-4' };
-        case 'E': return { bg: 'bg-slate-800', text: 'text-slate-100', accent: 'text-blue-300', border: 'border-blue-500', container: 'border-l-4 border-blue-500' };
-        case 'F': return { bg: 'bg-[#f5f5dc]', text: 'text-[#5d4037]', accent: 'text-[#8d6e63]', border: 'border-[#d7ccc8]', font: 'font-mono' };
-        case 'G': return { bg: 'bg-purple-600', text: 'text-white', accent: 'text-lime-300', border: 'border-lime-300', container: 'border-4 border-black box-shadow-retro' };
-        case 'H': return { bg: 'bg-neutral-900', text: 'text-neutral-200', accent: 'text-amber-500', border: 'border-amber-600', font: 'font-serif', container: 'border-y border-amber-900' };
-        case 'I': return { bg: 'bg-white', text: 'text-black', accent: 'text-black', border: 'border-black', container: 'border-2 border-black grid-pattern' };
-        case 'J': return { bg: 'bg-red-50', text: 'text-green-900', accent: 'text-red-600', border: 'border-red-200', container: 'border-dashed border-2 border-red-300' };
-        default: return { bg: 'bg-white', text: 'text-gray-900', accent: 'text-emerald-600', border: 'border-gray-100', container: 'border-b border-gray-100' }; // A
+        // Type A: 더 미니멀 (Apple Style)
+        case 'A':
+            return {
+                bg: 'bg-white',
+                text: 'text-main',
+                accent: 'text-primary',
+                border: 'border-gray-100',
+                font: 'font-sans',
+                container: ''
+            };
+
+        // Type B: 솔리드 블록 - Primary Color 배경
+        case 'B':
+            return {
+                bg: 'bg-primary',
+                text: 'text-white',
+                accent: 'text-secondary opacity-90',
+                border: 'border-primary brightness-90',
+                font: 'font-bold',
+                container: 'py-2'
+            };
+
+        // Type C: 라운드 카드 - 연한 배경 + 둥근 박스 + 그림자
+        case 'C':
+            return {
+                bg: 'bg-secondary',
+                text: 'text-main',
+                accent: 'text-primary',
+                border: 'border-gray-200',
+                font: 'font-medium',
+                container: 'rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] mx-4 my-3 bg-white border border-white'
+            };
+
+        // Type D: 감성 편지 - 1px 실선 테두리 + 손글씨 폰트
+        case 'D':
+            return {
+                bg: 'bg-[#fffef5]', // Warm ivory remains as signature
+                text: 'text-main',
+                accent: 'text-primary',
+                border: 'border-primary/30',
+                font: 'font-serif',
+                container: 'border border-gray-300 mx-4 my-2'
+            };
+
+        // Type E: 보더 라인 - 이중 테두리, 중앙 정렬
+        case 'E':
+            return {
+                bg: 'bg-white',
+                text: 'text-main',
+                accent: 'text-primary',
+                border: 'border-primary',
+                font: 'font-semibold',
+                container: 'border-4 border-double border-primary mx-4 my-2 text-center mx-auto'
+            };
+
+        default: return { bg: 'bg-white', text: 'text-main', accent: 'text-primary', border: 'border-gray-100', container: '' };
     }
 };
 
@@ -101,7 +151,8 @@ function EditableText({
     className = '',
     placeholder = '텍스트를 입력하세요',
     multiline = false,
-    tag: Tag = 'span'
+    tag: Tag = 'span',
+    textScale = 'normal'
 }: {
     value: string;
     onChange?: (value: string) => void;
@@ -109,6 +160,7 @@ function EditableText({
     placeholder?: string;
     multiline?: boolean;
     tag?: 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'div';
+    textScale?: TextScale;
 }) {
     const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
         const newValue = e.currentTarget.innerText;
@@ -124,6 +176,11 @@ function EditableText({
         }
     };
 
+    // Determine font based on tag - titles use title font, body uses body font
+    const isTitle = ['h1', 'h2', 'h3', 'h4'].includes(Tag);
+    const fontFamily = isTitle ? 'var(--font-title)' : 'var(--font-body)';
+    const scaleValue = TEXT_SCALE_VALUES[textScale];
+
     return (
         <Tag
             contentEditable
@@ -131,7 +188,10 @@ function EditableText({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             className={`${className} outline-none cursor-text hover:ring-2 hover:ring-emerald-400/50 focus:ring-2 focus:ring-emerald-500 rounded px-1 -mx-1 transition-all`}
-            style={{ minWidth: '20px' }}
+            style={{
+                minWidth: '20px',
+                fontFamily,
+            }}
         >
             {value || placeholder}
         </Tag>
@@ -292,10 +352,36 @@ function ResizableImageContainer({
         document.body.style.cursor = 'ns-resize';
     }
 
-    const handleStyle = "absolute w-5 h-5 bg-white border-2 border-emerald-500 rounded-full z-50 opacity-50 group-hover/resize:opacity-100 transition-opacity cursor-ns-resize shadow-md hover:scale-125 hover:bg-emerald-50";
+    const handleStyle = "absolute w-5 h-5 bg-white border-2 border-emerald-500 rounded-full z-50 opacity-0 group-hover/resize:opacity-100 transition-opacity cursor-ns-resize shadow-md hover:scale-125 hover:bg-emerald-50 no-capture";
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // [Fix] Enforce explicit pixel height for html2canvas compatibility
+    // html2canvas often ignores 'aspect-ratio' CSS, causing images to explode in height.
+    // We calculate the pixel height manually and set it as an inline style.
+    useEffect(() => {
+        const updateHeight = () => {
+            if (!containerRef.current) return;
+            const ratio = getNumericRatio(aspectRatio);
+            const width = containerRef.current.offsetWidth;
+            if (width && ratio) {
+                containerRef.current.style.height = `${width / ratio}px`;
+            }
+        };
+
+        // Initial calc
+        updateHeight();
+
+        // Observer for resize
+        const observer = new ResizeObserver(updateHeight);
+        if (containerRef.current) observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
+    }, [aspectRatio]);
 
     return (
         <div
+            ref={containerRef}
             className={`relative group/resize ${className}`}
             style={{ ...style, ...getAspectRatioStyle(aspectRatio) }}
         >
@@ -313,7 +399,7 @@ function ResizableImageContainer({
                     <div className={`${handleStyle} -bottom-2 -right-2`} onMouseDown={(e) => startResize(e, 'bottom')} />
 
                     {/* Border guide */}
-                    <div className="absolute inset-0 border-2 border-emerald-500 opacity-0 group-hover/resize:opacity-30 pointer-events-none z-40 transition-opacity" />
+                    <div className="absolute inset-0 border-2 border-emerald-500 opacity-0 group-hover/resize:opacity-30 pointer-events-none z-40 transition-opacity no-capture" />
                 </>
             )}
         </div >
@@ -322,56 +408,43 @@ function ResizableImageContainer({
 
 
 // ====== INTRO Modules ======
-function HookingBanner({ productData, variant, data, onUpdateData }: ModuleProps) {
+function HookingBanner({ productData, images, variant, data, onUpdateData }: ModuleProps) {
     const mainCopy = (data?.mainCopy as string) || '신선한 과일';
-    const subCopy = (data?.subCopy as string) || (productData.origin ? `${productData.origin} 산지직송` : '산지직송 직배송');
+    const subCopy = (data?.subCopy as string) || '산지직송 직배송';
+    const badgeText = (data?.badgeText as string) || '🔥 지금이 제철!';
     const styles = getThemeStyles(variant);
 
     const handleTextChange = (field: string) => (value: string) => {
         onUpdateData && onUpdateData({ [field]: value });
     };
 
-    if (variant === 'A') {
-        return (
-            <div className="relative bg-gradient-to-r from-emerald-600 to-teal-500 p-10 text-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/10" />
-                <div className="relative z-10">
-                    <p className="text-yellow-300 font-bold text-lg mb-2 animate-bounce">🔥 지금이 제철!</p>
-                    <EditableText
-                        value={mainCopy}
-                        onChange={handleTextChange('mainCopy')}
-                        className="text-4xl md:text-5xl font-black text-white leading-tight mb-4 drop-shadow-md whitespace-pre-line block"
-                        tag="h1"
-                        multiline
-                    />
+    return (
+        <div className={`${styles.bg} ${styles.container} p-10 sm:p-14 text-center relative overflow-hidden pb-[50px]`}>
+            <div className="relative z-10">
+                <EditableText
+                    value={badgeText}
+                    onChange={handleTextChange('badgeText')}
+                    className={`${styles.accent} font-bold text-lg mb-2 block`}
+                    tag="span"
+                />
+                <EditableText
+                    value={mainCopy}
+                    onChange={handleTextChange('mainCopy')}
+                    className={`${styles.text} ${styles.font || 'font-black'} text-4xl md:text-5xl leading-tight mb-4 whitespace-pre-line block`}
+                    tag="h1"
+                    multiline
+                />
+                <div className={`inline-block ${variant === 'B' ? 'bg-secondary text-primary' : 'bg-primary/10 text-primary'} px-4 py-1.5 rounded-full`}>
                     <EditableText
                         value={subCopy}
                         onChange={handleTextChange('subCopy')}
-                        className="text-white/90 text-lg font-medium bg-white/10 inline-block px-4 py-1 rounded-full whitespace-pre-line"
+                        className="text-lg font-medium whitespace-pre-line"
                         multiline
                     />
                 </div>
             </div>
-        );
-    }
-    return (
-        <div className={`${styles.bg} ${styles.container} p-12 text-center relative overflow-hidden`}>
-            <p className={`${styles.accent} ${styles.font || 'font-bold'} uppercase tracking-widest text-sm mb-3`}>Premium Quality</p>
-            <EditableText
-                value={mainCopy}
-                onChange={handleTextChange('mainCopy')}
-                className={`${styles.text} ${styles.font || 'font-black'} text-4xl md:text-5xl mb-4 leading-tight whitespace-pre-line block`}
-                tag="h1"
-                multiline
-            />
-            <div className={`inline-block ${variant === 'G' ? 'bg-lime-300 text-purple-900' : (variant === 'B' ? 'bg-yellow-400 text-black' : (variant === 'I' ? 'bg-black text-white' : 'border border-current'))} px-6 py-2 ${styles.text} font-bold`}>
-                <EditableText
-                    value={subCopy}
-                    onChange={handleTextChange('subCopy')}
-                    className="whitespace-pre-line"
-                    multiline
-                />
-            </div>
+            {/* Subtle background element for visual interest if needed, following theme */}
+            {variant === 'C' && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />}
         </div>
     );
 }
@@ -405,7 +478,7 @@ function HeroImage({ images, variant, data, onUpdateData }: ModuleProps) {
             <ResizableImageContainer
                 aspectRatio={data?.aspectRatio as number}
                 onUpdateAspectRatio={handleUpdateRatio}
-                className={`overflow-hidden ${variant === 'D' ? 'mx-6 my-6 bg-rose-50' : (variant === 'I' ? 'mx-4 my-4 border-x-2 border-black' : 'bg-gray-100')}`}
+                className={`overflow-hidden ${variant === 'D' ? 'w-[calc(100%-3rem)] mx-auto my-6 bg-rose-50 border border-gray-100 rounded-2xl' : `w-full ${variant === 'I' ? 'mx-4 my-4 border-x-2 border-black' : 'bg-gray-100'}`}`}
             >
                 {mainImage ? (
                     <div className={`w-full h-full relative ${variant === 'D' ? 'rounded-2xl overflow-hidden shadow-lg' : ''}`}>
@@ -420,26 +493,59 @@ function HeroImage({ images, variant, data, onUpdateData }: ModuleProps) {
     );
 }
 
-function SummaryCard({ productData, variant }: ModuleProps) {
-    // ... (unchanged)
+function SummaryCard({ productData, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+
+    const getPoint = (idx: number) => ({
+        label: (data?.[`label${idx}`] as string) || (idx === 1 ? '원산지' : idx === 2 ? '당도' : '크기'),
+        value: (data?.[`value${idx}`] as string) || (idx === 1 ? '국내산' : idx === 2 ? '15브릭스' : '특대'),
+        desc: (data?.[`desc${idx}`] as string) || '최상급 품격 선별'
+    });
+
+    const handleUpdate = (field: string) => (val: string) => {
+        onUpdateData && onUpdateData({ [field]: val });
+    };
+
     return (
-        <div className={`${styles.bg} ${styles.container} p-6`}>
-            <div className={`grid grid-cols-3 gap-4 text-center ${variant === 'I' ? 'divide-x-2 divide-black' : ''}`}>
-                <div><p className={`${styles.accent} text-xs mb-1 uppercase opacity-70`}>Origin</p><p className={`${styles.text} font-bold text-lg`}>{productData.origin || '-'}</p></div>
-                <div><p className={`${styles.accent} text-xs mb-1 uppercase opacity-70`}>Sweetness</p><p className={`${styles.text} font-bold text-lg`}>{productData.sweetness || '-'} Bx</p></div>
-                <div><p className={`${styles.accent} text-xs mb-1 uppercase opacity-70`}>Size</p><p className={`${styles.text} font-bold text-lg`}>{productData.size || '-'}</p></div>
+        <div className={`${styles.bg} ${styles.container} p-10 pb-[50px]`}>
+            <div className={`grid grid-cols-3 gap-6 text-center`}>
+                {[1, 2, 3].map(i => {
+                    const point = getPoint(i);
+                    return (
+                        <div key={i} className="flex flex-col items-center px-4">
+                            <EditableText
+                                value={point.label}
+                                onChange={handleUpdate(`label${i}`)}
+                                className={`${styles.accent} text-[8px] font-black uppercase tracking-widest mb-2 opacity-70`}
+                                tag="p"
+                                multiline
+                            />
+                            <EditableText
+                                value={point.value}
+                                onChange={handleUpdate(`value${i}`)}
+                                className={`${styles.text} font-black text-lg mb-1`}
+                                tag="p"
+                                multiline
+                            />
+                            <EditableText
+                                value={point.desc}
+                                onChange={handleUpdate(`desc${i}`)}
+                                className="text-gray-400 text-[8px] font-bold"
+                                tag="p"
+                                multiline
+                            />
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
 }
 
-// ... ReviewSummary, OriginCertificate (unchanged, just short code for brevity in update if needed, but I must provide full file content for write_to_file usually, 
-// wait, I can use replace or just write fully. Write full is safer to avoid context loss on large refactor.)
 function ReviewSummary({ productData, images, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+    const layoutMode = (data?.layoutMode as string) || 'horizontal';
 
-    // Default reviews if no data
     const defaultReviews = [
         { title: '정말 달아요!', text: '아이들이 너무 좋아해요. 당도가 정말 높네요.', imgIdx: 5 },
         { title: '신선하네요', text: '방금 딴 것처럼 싱싱해서 놀랐어요.', imgIdx: 6 },
@@ -462,59 +568,71 @@ function ReviewSummary({ productData, images, variant, data, onUpdateData }: Mod
         onUpdateData && onUpdateData({ [`imageIndex${index + 1}`]: idx });
     };
 
-    return (
-        <div className={`${styles.bg} ${styles.container} p-10 overflow-hidden`}>
-            <div className="text-center mb-10">
-                <p className={`${styles.accent} text-[13px] font-bold tracking-[0.2em] uppercase mb-2`}>Real Reviews</p>
-                <h2 className={`${styles.text} text-3xl font-black mb-3 break-keep`}>고객이 직접 증명하는 품질</h2>
-                <div className="flex justify-center text-yellow-500 text-2xl tracking-tight">★★★★★</div>
-            </div>
+    if (layoutMode === 'vertical') {
+        return (
+            <div className={`${styles.bg} ${styles.container} p-10 pb-[50px]`}>
+                <div className="max-w-md mx-auto space-y-4">
+                    <h3 className={`${styles.text} text-center mb-6 font-bold`}>리얼 후기</h3>
+                    {[0, 1, 2].map(i => {
+                        const review = getReviewData(i);
+                        const img = images[review.imgIdx];
+                        const imgSrc = img?.transformedUrl || img?.previewUrl;
 
-            {/* Fixed 3-column grid - NO SCROLL */}
-            <div className="grid grid-cols-3 gap-4">
+                        return (
+                            <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-3">
+                                <DroppableImageZone onDrop={handleImageDrop(i)} className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 text-[8px] text-gray-400">
+                                    {img ? (
+                                        <img src={imgSrc} className="w-full h-full object-contain bg-white" alt="리뷰 이미지" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">드롭</div>
+                                    )}
+                                </DroppableImageZone>
+                                <div className="flex-1 space-y-1 min-w-0">
+                                    <EditableText value={review.title} onChange={handleUpdateText(i, 'title')} className="text-gray-900 font-bold text-sm" tag="h4" />
+                                    <EditableText value={review.text} onChange={handleUpdateText(i, 'text')} className="text-gray-500 text-xs" tag="p" />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`${styles.bg} ${styles.container} p-8 pb-[50px]`}>
+            <div className="text-center mb-8">
+                <h3 className={`${styles.text} text-xl font-bold`}>구매자가 증명하는 맛</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-4 auto-rows-fr">
                 {[0, 1, 2].map(i => {
                     const review = getReviewData(i);
                     const img = images[review.imgIdx];
                     const imgSrc = img?.transformedUrl || img?.previewUrl;
 
                     return (
-                        <div key={i} className={`flex flex-col rounded-[24px] overflow-hidden border border-gray-100 shadow-sm transition-all hover:shadow-lg ${styles.bg === 'bg-white' ? 'bg-white' : 'bg-white/10 backdrop-blur-md'}`}>
-                            <DroppableImageZone onDrop={handleImageDrop(i)} className="relative aspect-square bg-gray-50">
-                                {img ? (
-                                    <img src={imgSrc} className="w-full h-full object-cover" alt="리뷰 이미지" />
-                                ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1 px-2">
-                                        <span className="text-2xl">📸</span>
-                                        <span className="text-[10px] font-bold text-center leading-tight">사진 드래그</span>
-                                    </div>
-                                )}
+                        <div key={i} className="bg-white p-4 rounded-2xl shadow-lg border border-gray-50 flex flex-col">
+                            <DroppableImageZone onDrop={handleImageDrop(i)}>
+                                <ResizableImageContainer
+                                    aspectRatio={1}
+                                    onUpdateAspectRatio={(r) => onUpdateData && onUpdateData({ [`aspectRatio${i + 1}`]: r })}
+                                    className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 mb-3 text-[10px] text-gray-400"
+                                >
+                                    {img ? (
+                                        <img src={imgSrc} className="w-full h-full object-cover rounded-xl" alt="리뷰 이미지" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">사진 드래그</div>
+                                    )}
+                                </ResizableImageContainer>
                             </DroppableImageZone>
-                            <div className="p-4 flex-1 flex flex-col">
-                                <div className="text-yellow-500 text-[10px] mb-2 tracking-tighter">★★★★★</div>
-                                <EditableText
-                                    value={review.title}
-                                    onChange={handleUpdateText(i, 'title')}
-                                    className={`${styles.text} font-bold text-sm mb-2 block text-left break-keep leading-snug h-10 overflow-hidden line-clamp-2`}
-                                    tag="h4"
-                                />
-                                <EditableText
-                                    value={review.text}
-                                    onChange={handleUpdateText(i, 'text')}
-                                    className={`${styles.text} text-[11px] opacity-70 leading-[1.5] text-left break-keep h-20 overflow-hidden line-clamp-4`}
-                                    tag="p"
-                                    multiline
-                                />
-                            </div>
+                            <EditableText value={review.title} onChange={handleUpdateText(i, 'title')} className="text-gray-800 font-bold mb-1 text-sm" tag="h4" />
+                            <EditableText value={review.text} onChange={handleUpdateText(i, 'text')} className="text-gray-500 text-xs line-clamp-3" tag="p" />
                         </div>
                     );
                 })}
             </div>
         </div>
     );
-}
-function OriginCertificate({ productData, variant }: ModuleProps) {
-    const styles = getThemeStyles(variant);
-    return (<div className={`${styles.bg} ${styles.container} p-8 flex flex-col items-center text-center`}><div className={`w-16 h-16 rounded-full border-2 ${styles.border} flex items-center justify-center mb-4 ${styles.accent}`}><span className="text-3xl">✓</span></div><h3 className={`${styles.text} font-bold text-lg uppercase tracking-wider mb-1`}>Certified Origin</h3><p className={`${styles.text} opacity-80`}>{productData.origin || '산지 인증'}</p></div>)
 }
 
 function FarmerStory({ productData, images, variant, data, onUpdateData }: ModuleProps) {
@@ -523,7 +641,7 @@ function FarmerStory({ productData, images, variant, data, onUpdateData }: Modul
     const imgSrc = farmerImage?.transformedUrl || farmerImage?.previewUrl;
     const styles = getThemeStyles(variant);
 
-    const farmerName = (data?.farmerName as string) || productData.farmerName || 'Farmer';
+    const farmerName = (data?.farmerName as string) || '생산자';
     const storyText = (data?.storyText as string) || '"정직하게 키운 농산물만 보냅니다."';
 
     const handleUpdateRatio = (r: number) => onUpdateData && onUpdateData({ aspectRatio: r });
@@ -534,13 +652,13 @@ function FarmerStory({ productData, images, variant, data, onUpdateData }: Modul
 
     if (variant === 'B' || variant === 'H' || variant === 'E') {
         return (
-            <DroppableImageZone onDrop={handleImageDrop} className="relative">
+            <DroppableImageZone onDrop={handleImageDrop} className={`relative ${styles.bg} pb-[50px]`}>
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 'video')}
                     onUpdateAspectRatio={handleUpdateRatio}
-                    className="relative bg-black overflow-hidden group"
+                    className="relative w-full bg-black overflow-hidden"
                 >
-                    {farmerImage ? <img src={imgSrc} className="absolute inset-0 w-full h-full object-cover opacity-50" /> : <div className="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400">이미지 드롭</div>}
+                    {farmerImage ? <img src={imgSrc} className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0 bg-gray-700 flex items-center justify-center text-gray-400">이미지 드롭</div>}
                     <div className="absolute inset-0 flex flex-col justify-end p-8 bg-gradient-to-t from-black via-transparent to-transparent">
                         <EditableText value={farmerName} onChange={handleTextChange('farmerName')} className={`text-3xl font-bold ${styles.text} mb-2`} tag="h2" />
                         <EditableText value={storyText} onChange={handleTextChange('storyText')} className={`${styles.text} opacity-80 leading-relaxed`} tag="p" multiline />
@@ -551,7 +669,7 @@ function FarmerStory({ productData, images, variant, data, onUpdateData }: Modul
     }
 
     return (
-        <div className={`${styles.bg} ${styles.container} p-8 flex flex-col items-center text-center`}>
+        <div className={`${styles.bg} ${styles.container} p-8 flex flex-col items-center text-center pb-[50px]`}>
             <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-sm">
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 'video')}
@@ -586,51 +704,39 @@ function BenefitPoint({ index, productData, images, variant, data, onUpdateData 
         onUpdateData && onUpdateData({ [field]: value });
     };
 
-    const renderImage = (extraClass = '') => (
-        <DroppableImageZone onDrop={handleImageDrop} className="relative w-full">
-            <ResizableImageContainer
-                aspectRatio={getDataAspectRatio(data, 16 / 9)}
-                onUpdateAspectRatio={handleUpdateRatio}
-                className={extraClass}
-            >
-                {image ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">이미지 드롭</div>}
-            </ResizableImageContainer>
-        </DroppableImageZone>
-    );
-
     if (variant === 'A') {
         return (
-            <div className="flex flex-col p-10 bg-white border-b border-gray-100 items-center text-center">
-                <span className="text-emerald-600 font-bold text-sm mb-3">POINT {index}</span>
-                <EditableText value={title} onChange={handleTextChange('title')} className="text-3xl font-bold text-gray-900 mb-8 break-keep leading-snug px-4" tag="h3" multiline />
-                <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-3xl mb-8">
+            <div className="flex flex-col p-10 sm:p-14 bg-white border-b border-gray-100 items-center text-center pb-[50px]">
+                <span className={`${styles.accent} font-bold text-base mb-3`}>포인트 0{index}</span>
+                <EditableText value={title} onChange={handleTextChange('title')} className="text-3xl sm:text-4xl font-black text-main mb-8 break-keep leading-tight px-4" tag="h3" multiline />
+                <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-4xl mb-8">
                     <ResizableImageContainer
                         aspectRatio={getDataAspectRatio(data, 16 / 9)}
                         onUpdateAspectRatio={handleUpdateRatio}
-                        className="w-full rounded-2xl overflow-hidden bg-gray-100 shadow-lg"
+                        className="w-full rounded-2xl overflow-hidden bg-gray-50 shadow-sm border border-gray-100"
                     >
-                        {image ? <img src={imgSrc} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-video">이미지 드롭</div>}
+                        {image ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-video">사진 드래그</div>}
                     </ResizableImageContainer>
                 </DroppableImageZone>
-                <EditableText value={description} onChange={handleTextChange('description')} className="text-gray-700 leading-relaxed text-lg break-keep max-w-2xl" tag="p" multiline />
+                <EditableText value={description} onChange={handleTextChange('description')} className="text-main/70 leading-relaxed text-lg break-keep max-w-2xl px-4" tag="p" multiline />
             </div>
         );
     }
 
     if (['B', 'E', 'H'].includes(variant)) {
         return (
-            <DroppableImageZone onDrop={handleImageDrop} className="relative">
+            <DroppableImageZone onDrop={handleImageDrop} className={`relative ${styles.bg} pb-[50px]`}>
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 16 / 9)}
                     onUpdateAspectRatio={handleUpdateRatio}
-                    className={`relative ${styles.bg} overflow-hidden group`}
+                    className={`relative w-full ${styles.bg} overflow-hidden`}
                 >
-                    {image ? <img src={imgSrc} className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-gray-700" />}
+                    {image ? <img src={imgSrc} className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0 bg-gray-700" />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-10 flex flex-col justify-end items-center text-center">
-                        <div className={`border ${styles.border} px-4 py-1 rounded-full ${styles.accent} font-bold text-sm mb-4 tracking-widest uppercase backdrop-blur-sm`}>Premium Benefit 0{index}</div>
-                        <EditableText value={title} onChange={handleTextChange('title')} className={`text-3xl font-black ${styles.text} mb-6 leading-tight max-w-2xl text-shadow-lg`} tag="h3" multiline />
-                        <div className={`w-12 h-1 bg-current ${styles.accent} mb-6`}></div>
-                        <EditableText value={description} onChange={handleTextChange('description')} className="text-gray-100 text-lg leading-relaxed max-w-3xl font-medium text-shadow" tag="p" multiline />
+                        <div className={`border ${styles.border} px-4 py-1 rounded-full ${styles.accent} font-bold text-sm mb-4 tracking-widest uppercase backdrop-blur-sm`}>포인트 0{index}</div>
+                        <EditableText value={title} onChange={handleTextChange('title')} className="text-3xl sm:text-5xl font-black text-white mb-6 leading-tight max-w-2xl" tag="h3" multiline />
+                        <div className={`w-12 h-1 ${styles.bg === 'bg-primary' ? 'bg-secondary' : 'bg-primary'} mb-6 opacity-80`}></div>
+                        <EditableText value={description} onChange={handleTextChange('description')} className="text-white opacity-90 text-lg leading-relaxed max-w-3xl font-medium" tag="p" multiline />
                     </div>
                 </ResizableImageContainer>
             </DroppableImageZone>
@@ -639,28 +745,28 @@ function BenefitPoint({ index, productData, images, variant, data, onUpdateData 
 
     if (['C', 'D', 'F'].includes(variant)) {
         return (
-            <div className={`py-16 px-8 ${styles.bg} ${styles.container} flex flex-col items-center text-center`}>
-                <span className={`text-xs tracking-widest ${styles.accent} mb-6 border ${styles.border} px-4 py-1.5 rounded-full uppercase`}>Check Point 0{index}</span>
-                <EditableText value={title} onChange={handleTextChange('title')} className={`text-3xl ${styles.font} ${styles.text} mb-8 px-4 leading-snug`} tag="h3" multiline />
+            <div className={`py-16 px-8 ${styles.bg} ${styles.container} flex flex-col items-center text-center pb-[50px]`}>
+                <span className={`text-sm tracking-widest ${styles.accent} mb-6 border ${styles.border} px-4 py-1.5 rounded-full uppercase font-bold`}>체크포인트 0{index}</span>
+                <EditableText value={title} onChange={handleTextChange('title')} className={`text-3xl sm:text-4xl ${styles.font} ${styles.text} mb-8 px-4 leading-snug font-black`} tag="h3" multiline />
                 <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-4xl mb-10">
                     <ResizableImageContainer
-                        aspectRatio={getDataAspectRatio(data, 21 / 9)}
+                        aspectRatio={getDataAspectRatio(data, 16 / 9)}
                         onUpdateAspectRatio={handleUpdateRatio}
-                        className={`w-full bg-black/5 ${variant === 'D' ? 'rounded-2xl' : 'rounded-sm'} overflow-hidden`}
+                        className={`w-full bg-black/5 ${variant === 'D' ? 'rounded-2xl shadow-sm' : 'rounded-sm'} overflow-hidden border ${styles.border}`}
                     >
-                        {image ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-[21/9]">이미지 드롭</div>}
+                        {image ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-video">이미지 드롭</div>}
                     </ResizableImageContainer>
                 </DroppableImageZone>
-                <EditableText value={description} onChange={handleTextChange('description')} className={`${styles.text} opacity-80 text-lg leading-loose max-w-2xl break-keep`} tag="p" multiline />
+                <EditableText value={description} onChange={handleTextChange('description')} className={`${styles.text} opacity-80 text-lg leading-relaxed max-w-2xl break-keep px-4`} tag="p" multiline />
             </div>
         )
     }
 
     if (['G', 'I'].includes(variant)) {
         return (
-            <div className={`${styles.bg} ${styles.container} p-8 md:p-12 flex flex-col items-center text-center relative`}>
-                <div className={`absolute top-0 left-0 bg-black text-white px-4 py-2 font-bold text-xl z-10 ${variant === 'I' ? 'block' : 'hidden'}`}>{index}</div>
-                <EditableText value={title} onChange={handleTextChange('title')} className={`text-4xl md:text-5xl font-black ${styles.text} mb-8 uppercase italic`} tag="h3" multiline />
+            <div className={`${styles.bg} ${styles.container} p-8 md:p-12 flex flex-col items-center text-center relative pb-[50px]`}>
+                <div className={`absolute top-0 left-0 bg-black text-white px-4 py-2 font-bold text-2xl z-10 ${variant === 'I' ? 'block' : 'hidden'}`}>{index}</div>
+                <EditableText value={title} onChange={handleTextChange('title')} className={`text-5xl md:text-6xl font-black ${styles.text} mb-8 uppercase italic`} tag="h3" multiline />
                 <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-lg mb-8">
                     <ResizableImageContainer
                         aspectRatio={getDataAspectRatio(data, 1)}
@@ -677,9 +783,9 @@ function BenefitPoint({ index, productData, images, variant, data, onUpdateData 
 
     // Fallback
     return (
-        <div className={`${styles.bg} ${styles.container} p-10 flex flex-col items-center text-center`}>
-            <span className={`${styles.accent} font-bold mb-4`}>POINT {index}</span>
-            <EditableText value={title} onChange={handleTextChange('title')} className={`text-2xl ${styles.text} font-bold mb-6`} tag="h3" multiline />
+        <div className={`${styles.bg} ${styles.container} p-10 flex flex-col items-center text-center pb-[50px]`}>
+            <span className={`${styles.accent} font-bold text-lg mb-4`}>포인트 {index}</span>
+            <EditableText value={title} onChange={handleTextChange('title')} className={`text-3xl ${styles.text} font-bold mb-6`} tag="h3" multiline />
             <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-2xl mb-6">
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 16 / 9)}
@@ -696,6 +802,7 @@ function BenefitPoint({ index, productData, images, variant, data, onUpdateData 
 
 function ComparisonTable({ productData, images, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+    const rowCount = (data?.rowCount as number) || 3;
     const ourImageIndex = typeof data?.ourImageIndex === 'number' ? (data.ourImageIndex as number) : 0;
     const competitorImageIndex = typeof data?.competitorImageIndex === 'number' ? (data.competitorImageIndex as number) : 1;
 
@@ -704,69 +811,94 @@ function ComparisonTable({ productData, images, variant, data, onUpdateData }: M
     const ourImgSrc = ourImage?.transformedUrl || ourImage?.previewUrl;
     const competitorImgSrc = competitorImage?.transformedUrl || competitorImage?.previewUrl;
 
-    const [ourDragOver, setOurDragOver] = React.useState(false);
-    const [compDragOver, setCompDragOver] = React.useState(false);
-
-    const handleDrop = (field: 'ourImageIndex' | 'competitorImageIndex') => (e: React.DragEvent) => {
-        e.preventDefault();
-        const imageIndex = parseInt(e.dataTransfer.getData('imageIndex'));
-        if (!isNaN(imageIndex) && onUpdateData) {
-            onUpdateData({ [field]: imageIndex });
-        }
-        setOurDragOver(false);
-        setCompDragOver(false);
+    const handleUpdate = (field: string) => (val: string) => {
+        onUpdateData && onUpdateData({ [field]: val });
     };
 
-    return (
-        <div className={`${styles.bg} ${styles.container} p-8`}>
-            <h2 className={`text-xl font-bold ${styles.text} mb-6 text-center`}>Comparison Check</h2>
+    const handleImageDrop = (field: 'ourImageIndex' | 'competitorImageIndex') => (idx: number) => {
+        onUpdateData && onUpdateData({ [field]: idx });
+    };
 
-            {/* Two images side by side */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+    const isSolid = variant === 'B';
+
+    return (
+        <div className={`${styles.bg} ${styles.container} p-10 pb-[50px]`}>
+            <div className="text-center mb-10">
+                <p className={`${styles.accent} text-[13px] font-bold tracking-[0.2em] uppercase mb-2`}>품질 비교</p>
+                <h2 className={`${styles.text} text-3xl font-black mb-1`}>압도적인 품질 차이</h2>
+                <div className="w-12 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-10">
                 <div className="flex flex-col">
-                    <div
-                        className={`aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm border-2 transition-all ${ourDragOver ? 'border-emerald-500 ring-4 ring-emerald-200 scale-105' : 'border-emerald-400'}`}
-                        onDragOver={(e) => { e.preventDefault(); setOurDragOver(true); }}
-                        onDragLeave={() => setOurDragOver(false)}
-                        onDrop={handleDrop('ourImageIndex')}
-                    >
-                        {ourImage ? (
-                            <img src={ourImgSrc} className="w-full h-full object-cover" alt="우리 상품" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-200 text-sm text-center p-2">
-                                이미지를<br />드래그하세요
-                            </div>
-                        )}
-                    </div>
-                    <p className={`text-center mt-2 font-bold text-sm ${styles.accent}`}>우리 상품</p>
+                    <DroppableImageZone onDrop={handleImageDrop('ourImageIndex')}>
+                        <ResizableImageContainer aspectRatio={1} className="bg-gray-50 rounded-2xl overflow-hidden border-4 border-primary shadow-md">
+                            {ourImage ? (
+                                <img src={ourImgSrc} className="w-full h-full object-cover rounded-2xl" alt="우리 상품" />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
+                                    <span className="text-3xl">📥</span>
+                                    <span className="text-xs font-bold text-primary">우리 상품</span>
+                                </div>
+                            )}
+                        </ResizableImageContainer>
+                    </DroppableImageZone>
                 </div>
                 <div className="flex flex-col">
-                    <div
-                        className={`aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-sm border transition-all ${compDragOver ? 'border-gray-500 ring-4 ring-gray-300 scale-105' : 'border-gray-300'}`}
-                        onDragOver={(e) => { e.preventDefault(); setCompDragOver(true); }}
-                        onDragLeave={() => setCompDragOver(false)}
-                        onDrop={handleDrop('competitorImageIndex')}
-                    >
-                        {competitorImage ? (
-                            <img src={competitorImgSrc} className="w-full h-full object-cover" alt="경쟁사 상품" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-200 text-sm text-center p-2">
-                                이미지를<br />드래그하세요
-                            </div>
-                        )}
-                    </div>
-                    <p className="text-center mt-2 font-medium text-sm text-gray-500">일반 상품</p>
+                    <DroppableImageZone onDrop={handleImageDrop('competitorImageIndex')}>
+                        <ResizableImageContainer aspectRatio={1} className="bg-gray-50 rounded-2xl overflow-hidden border-4 border-gray-200 shadow-md">
+                            {competitorImage ? (
+                                <img src={competitorImgSrc} className="w-full h-full object-cover rounded-2xl" alt="경쟁사 상품" />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">
+                                    <span className="text-3xl grayscale">📤</span>
+                                    <span className="text-xs font-bold">일반 상품</span>
+                                </div>
+                            )}
+                        </ResizableImageContainer>
+                    </DroppableImageZone>
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-                <div className="grid grid-cols-2 text-center divide-x divide-gray-200">
-                    <div className={`p-4 bg-emerald-50 ${styles.accent} font-bold text-lg`}>우리 상품</div>
-                    <div className="p-4 bg-gray-50 text-gray-500 font-medium">일반 상품</div>
+            <div className={`overflow-hidden rounded-3xl border-2 ${isSolid ? 'border-secondary/30' : 'border-gray-100'} shadow-2xl bg-white w-full mx-auto`}>
+                <div className="grid grid-cols-2 text-center">
+                    <div className={`p-5 ${isSolid ? 'bg-secondary text-primary' : 'bg-primary text-white'} font-black text-lg shadow-inner`}>
+                        <EditableText value={(data?.headerOur as string) || '우리 상품'} onChange={handleUpdate('headerOur')} tag="span" />
+                    </div>
+                    <div className="p-5 bg-gray-100 text-gray-400 font-bold border-l border-white/50">
+                        <EditableText value={(data?.headerComp as string) || '일반 상품'} onChange={handleUpdate('headerComp')} tag="span" />
+                    </div>
                 </div>
-                <div className={`grid grid-cols-2 text-center divide-x divide-gray-200 border-t border-gray-200 bg-white ${styles.text}`}>
-                    <div className="p-4 space-y-1"><p className="text-xs opacity-50 mb-1">당도</p><p className="font-bold text-lg">{productData.sweetness || '14'}Bx</p><p className="text-xs text-emerald-600 font-bold">고당도 보장</p></div>
-                    <div className="p-4 space-y-1 bg-gray-50/50"><p className="text-xs opacity-50 mb-1">당도</p><p className="text-gray-400">10~12Bx</p><p className="text-xs text-gray-400">일반 당도</p></div>
+
+                <div className="divide-y divide-gray-100">
+                    {Array.from({ length: rowCount }).map((_, i) => (
+                        <div key={i} className="grid grid-cols-2 group relative">
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                                <EditableText
+                                    value={(data?.[`row${i + 1}Title`] as string) || (i === 0 ? '당도' : i === 1 ? '선별' : '산지')}
+                                    onChange={handleUpdate(`row${i + 1}Title`)}
+                                    className="px-3 py-1 bg-white rounded-full text-[10px] font-black text-gray-400 border border-gray-100 shadow-sm min-w-[50px] text-center"
+                                    tag="p"
+                                />
+                            </div>
+                            <div className="p-8 text-center border-r border-gray-100">
+                                <EditableText
+                                    value={(data?.[`row${i + 1}Our`] as string) || '프리미엄급'}
+                                    onChange={handleUpdate(`row${i + 1}Our`)}
+                                    className={`${isSolid ? 'text-primary' : 'text-gray-900'} font-black text-xl leading-snug break-keep`}
+                                    tag="p"
+                                />
+                            </div>
+                            <div className="p-8 text-center bg-gray-50/30 flex items-center justify-center">
+                                <EditableText
+                                    value={(data?.[`row${i + 1}Comp`] as string) || '일반 등급'}
+                                    onChange={handleUpdate(`row${i + 1}Comp`)}
+                                    className="text-gray-400 font-bold text-base break-keep"
+                                    tag="p"
+                                />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
@@ -781,20 +913,27 @@ function SizeGuide({ productData, images, variant, data, onUpdateData }: ModuleP
     const handleUpdateRatio = (r: number) => onUpdateData && onUpdateData({ aspectRatio: r });
     const handleImageDrop = (idx: number) => onUpdateData && onUpdateData({ imageIndex: idx });
 
+    const isSolid = variant === 'B';
+
     return (
-        <div className={`${styles.bg} ${styles.container} p-8 flex flex-col items-center text-center`}>
-            <h2 className={`text-xl font-bold ${styles.text} mb-6`}>SIZE CHECK</h2>
+        <div className={`${styles.bg} ${styles.container} p-10 flex flex-col items-center text-center`}>
+            <h2 className={`text-xl font-bold ${styles.text} mb-8 uppercase tracking-widest`}>사이즈 안내</h2>
             <DroppableImageZone onDrop={handleImageDrop} className="relative w-64 max-w-full">
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 1)}
                     onUpdateAspectRatio={handleUpdateRatio}
-                    className={`rounded-full overflow-hidden mb-4 border-4 ${styles.border} ${styles.bg === 'bg-white' ? 'bg-gray-50' : 'bg-white/10'}`}
+                    className={`rounded-full overflow-hidden mb-6 border-4 ${isSolid ? 'border-secondary shadow-lg' : styles.border} ${styles.bg === 'bg-white' ? 'bg-gray-50' : 'bg-white/10'}`}
                 >
                     {sizeImage ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-square">이미지 드롭</div>}
                 </ResizableImageContainer>
             </DroppableImageZone>
-            <p className={`text-2xl font-bold ${styles.accent}`}>{productData.size || '특대'}</p>
-            <p className={`${styles.text} opacity-70 mt-2`}>실제 크기는 이미지와 다를 수 있습니다.</p>
+            <EditableText
+                value={(data?.size as string) || '특대형'}
+                onChange={(v) => onUpdateData && onUpdateData({ size: v })}
+                className={`text-3xl font-black ${isSolid ? 'text-white' : styles.accent} mb-2`}
+                tag="p"
+            />
+            <p className={`${styles.text} opacity-60 text-sm italic`}>실제 크기는 이미지와 다를 수 있습니다.</p>
         </div>
     );
 }
@@ -802,6 +941,7 @@ function SizeGuide({ productData, images, variant, data, onUpdateData }: ModuleP
 // ... HarvestProcess, SweetnessCheck, TasteTip, EventHighlight, PackagingInfo, CautionNotice, CSInfo
 function HarvestProcess({ images, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+    const isSolid = variant === 'B';
 
     const defaultSteps = [
         { title: '엄격한 선별', desc: '수확 후 크기, 당도, 외관을 기준으로 최상품만 선별합니다.' },
@@ -821,13 +961,13 @@ function HarvestProcess({ images, variant, data, onUpdateData }: ModuleProps) {
     };
 
     return (
-        <div className={`${styles.bg} ${styles.container} p-8`}>
-            <h2 className={`text-xl font-bold ${styles.text} mb-6 text-center`}>수확부터 배송까지</h2>
-            <div className="space-y-4">
+        <div className={`${styles.bg} ${styles.container} p-8 sm:p-12`}>
+            <h2 className={`text-xl font-bold ${styles.text} mb-8 text-center uppercase tracking-widest`}>수확 프로세스</h2>
+            <div className="space-y-4 max-w-2xl mx-auto">
                 {[0, 1, 2, 3].map(stepIndex => (
-                    <div key={stepIndex} className={`flex items-start gap-4 p-5 border ${styles.border} rounded-xl ${styles.bg === 'bg-white' ? 'bg-gray-50' : 'bg-black/20'}`}>
-                        <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${styles.accent} ${styles.bg === 'bg-white' ? 'bg-emerald-100' : 'bg-white/10'}`}>
-                            <span className="text-xl font-black">0{stepIndex + 1}</span>
+                    <div key={stepIndex} className={`flex items-start gap-4 p-5 border ${isSolid ? 'border-white/10 bg-white/5' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-gray-50' : 'bg-black/10'}`} rounded-xl`}>
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-black ${isSolid ? 'bg-secondary text-primary' : `${styles.accent} ${styles.bg === 'bg-white' ? 'bg-primary/5' : 'bg-white/10'}`}`}>
+                            {stepIndex + 1}
                         </div>
                         <div className="flex-1">
                             <EditableText
@@ -839,7 +979,7 @@ function HarvestProcess({ images, variant, data, onUpdateData }: ModuleProps) {
                             <EditableText
                                 value={getStepData(stepIndex, 'desc')}
                                 onChange={handleTextChange(stepIndex, 'desc')}
-                                className={`${styles.text} opacity-80 text-sm leading-relaxed`}
+                                className={`${styles.text} opacity-70 text-sm leading-relaxed`}
                                 tag="p"
                                 multiline
                             />
@@ -856,20 +996,26 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
     const imageIndex = typeof data?.imageIndex === 'number' ? (data.imageIndex as number) : 0;
     const brixImage = images[imageIndex];
     const imgSrc = brixImage?.transformedUrl || brixImage?.previewUrl;
+    const isSolid = variant === 'B';
 
     const handleUpdateRatio = (r: number) => onUpdateData && onUpdateData({ aspectRatio: r });
     const handleImageDrop = (idx: number) => onUpdateData && onUpdateData({ imageIndex: idx });
 
     return (
-        <div className={`${styles.bg} ${styles.container} p-8`}>
-            <div className="text-center mb-6">
-                <p className={`${styles.accent} tracking-widest text-sm font-bold mb-2 uppercase`}>Brix Check</p>
-                <div className={`text-6xl font-black mb-4 flex justify-center items-start ${styles.text}`}>
-                    {productData.sweetness || 14}
-                    <span className="text-xl mt-2 opacity-50 ml-1">Bx</span>
+        <div className={`${styles.bg} ${styles.container} p-10 sm:p-14 text-center`}>
+            <div className="mb-10">
+                <p className={`${isSolid ? 'text-white/60' : styles.accent} tracking-[0.2em] text-[10px] font-black mb-3 uppercase`}>당도 체크</p>
+                <div className={`flex justify-center items-baseline gap-1 mb-6 ${styles.text}`}>
+                    <EditableText
+                        value={(data?.sweetness as string) || '14'}
+                        onChange={(v) => onUpdateData && onUpdateData({ sweetness: v })}
+                        className="text-7xl font-black"
+                        tag="span"
+                    />
+                    <span className="text-xl font-bold opacity-50">브릭스</span>
                 </div>
-                <div className={`w-full max-w-xs mx-auto h-3 rounded-full overflow-hidden ${styles.bg === 'bg-white' ? 'bg-gray-200' : 'bg-gray-700'}`}>
-                    <div className={`h-full ${styles.bg === 'bg-white' ? 'bg-emerald-500' : 'bg-emerald-400'} w-[80%] rounded-full`}></div>
+                <div className={`w-full max-w-xs mx-auto h-2.5 rounded-full overflow-hidden ${styles.bg === 'bg-white' ? 'bg-gray-100' : 'bg-black/20'}`}>
+                    <div className={`h-full ${isSolid ? 'bg-white' : 'bg-primary'} w-[85%] rounded-full shadow-[0_0_10px_rgba(255,255,255,0.3)]`}></div>
                 </div>
             </div>
 
@@ -878,7 +1024,7 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 1)}
                     onUpdateAspectRatio={handleUpdateRatio}
-                    className={`w-full rounded-xl overflow-hidden ${styles.bg === 'bg-white' ? 'bg-gray-100 border border-gray-200' : 'bg-white/10'}`}
+                    className={`w-full rounded-2xl overflow-hidden shadow-xl border-4 ${isSolid ? 'border-white/20' : styles.border}`}
                 >
                     {brixImage ? (
                         <img src={imgSrc} className="w-full h-full object-cover" alt="당도 측정" />
@@ -892,13 +1038,14 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
                 </ResizableImageContainer>
             </DroppableImageZone>
 
-            <p className={`${styles.text} text-center mt-4 text-sm opacity-70`}>비파괴 당도 선별기로 측정한 고당도 과일만 보내드립니다.</p>
+            <p className={`${styles.text} mt-8 text-sm opacity-60 font-medium italic`}>비파괴 당도 선별기로 측정한 고당도 과일만 보내드립니다.</p>
         </div>
     );
 }
 
 function TasteTip({ productData, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+    const isSolid = variant === 'B';
 
     const defaultTips = [
         '수령 후 바로 냉장(0~5°C) 보관해주세요.',
@@ -918,19 +1065,19 @@ function TasteTip({ productData, variant, data, onUpdateData }: ModuleProps) {
     };
 
     return (
-        <div className={`${styles.bg} ${styles.container} p-8`}>
-            <div className="text-center mb-6">
-                <span className="text-4xl mb-2 block">😋</span>
-                <h3 className={`text-xl font-bold ${styles.text}`}>맛있게 먹는 팁</h3>
+        <div className={`${styles.bg} ${styles.container} p-8 sm:p-12`}>
+            <div className="text-center mb-8">
+                <span className="text-4xl mb-3 block">😋</span>
+                <h3 className={`text-2xl font-black ${styles.text} uppercase tracking-widest`}>맛있게 먹는 법</h3>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 max-w-2xl mx-auto">
                 {[0, 1, 2, 3].map(index => (
-                    <div key={index} className={`flex items-start gap-3 p-3 rounded-lg ${styles.bg === 'bg-white' ? 'bg-emerald-50' : 'bg-white/5'}`}>
-                        <span className={`${styles.accent} text-lg`}>✓</span>
+                    <div key={index} className={`flex items-start gap-4 p-4 rounded-xl border ${isSolid ? 'border-white/10 bg-white/10' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-emerald-50/50' : 'bg-white/5'}`}`}>
+                        <span className={`${isSolid ? 'text-white' : styles.accent} text-lg font-bold`}>✓</span>
                         <EditableText
                             value={getTipData(index)}
                             onChange={handleTextChange(index)}
-                            className={`${styles.text} text-sm flex-1`}
+                            className={`${styles.text} text-base flex-1 opacity-90`}
                             tag="p"
                         />
                     </div>
@@ -939,9 +1086,51 @@ function TasteTip({ productData, variant, data, onUpdateData }: ModuleProps) {
         </div>
     );
 }
-function EventHighlight({ productData, variant, data }: ModuleProps) {
+function EventHighlight({ productData, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
-    const eventText = (data?.eventText as string) || productData.eventText || '지금 구매 시 특별 할인 혜택!'; if (variant === 'B') { return (<div className="bg-black p-16 text-center border-y-8 border-yellow-400 relative overflow-hidden group"><div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-20 animate-[pulse_3s_infinite]"></div><h3 className="relative text-yellow-400 font-black text-6xl mb-6 tracking-tighter uppercase animate-bounce">SPECIAL OFFER</h3><p className="relative text-white font-bold text-3xl max-w-4xl mx-auto leading-tight whitespace-pre-line">{eventText}</p><div className="mt-8"><span className="inline-block bg-yellow-400 text-black font-black text-xl px-8 py-3 rounded-full transform rotate-[-2deg]">💰 기간 한정 혜택 💰</span></div></div>) } if (variant === 'G') { return (<div className="bg-purple-600 p-16 text-center relative overflow-hidden border-4 border-black"><div className="absolute top-0 right-0 text-9xl opacity-20 rotate-12">🎉</div><div className="absolute bottom-0 left-0 text-9xl opacity-20 -rotate-12">🎁</div><h3 className="text-5xl font-black text-lime-300 mb-6 drop-shadow-[4px_4px_0_rgba(0,0,0,1)] uppercase italic">Limited Event</h3><div className="bg-white border-4 border-black p-6 transform -rotate-1 shadow-[8px_8px_0_rgba(0,0,0,1)] inline-block"><p className="text-black font-bold text-2xl md:text-3xl whitespace-pre-line">{eventText}</p></div></div>) } if (variant === 'J') { return (<div className="bg-red-600 p-16 text-center text-white border-4 border-dashed border-green-400 m-4 rounded-xl shadow-xl relative"><div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-green-500 text-white font-bold px-6 py-2 rounded-full border-2 border-white shadow-lg">SEASON SPECIAL</div><h3 className="text-4xl font-serif font-bold mb-4 mt-2">🎄 특별한 선물 🎄</h3><p className="text-2xl font-medium opacity-90 whitespace-pre-line">{eventText}</p></div>) } return (<div className={`${styles.bg} ${styles.container} py-20 px-8 text-center relative overflow-hidden`}>{variant === 'A' && <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 opacity-20 animate-pulse"></div>}<div className="relative z-10"><div className="text-6xl mb-6 animate-bounce">🎁</div><h3 className={`text-4xl md:text-5xl font-black ${styles.text} mb-6 leading-tight`}><span className="bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-pink-600 block mb-2">EVENT</span></h3><p className={`${styles.text} text-2xl md:text-3xl font-bold max-w-4xl mx-auto break-keep leading-snug whitespace-pre-line`}>{eventText}</p><div className="mt-8 w-24 h-1 bg-current opacity-30 mx-auto rounded-full"></div><p className={`${styles.text} mt-4 opacity-70`}>기간 한정 혜택을 놓치지 마세요!</p></div></div>)
+    const eventTitle = (data?.eventTitle as string) || 'SPECIAL EVENT';
+    const eventText = (data?.eventText as string) || productData.eventText || '지금 구매 시 특별 할인 혜택!';
+    const badgeText = (data?.badgeText as string) || '💰 기간 한정 혜택 💰';
+
+    const handleTextChange = (field: string) => (value: string) => {
+        onUpdateData && onUpdateData({ [field]: value });
+    };
+
+    return (
+        <div className={`${styles.bg} ${styles.container} py-16 px-8 text-center relative overflow-hidden`}>
+            {/* Template specific background decorations without animation */}
+            {variant === 'B' && <div className="absolute inset-0 bg-primary/10" />}
+
+            <div className="relative z-10">
+                <EditableText
+                    value={eventTitle}
+                    onChange={handleTextChange('eventTitle')}
+                    className={`${styles.accent} font-black text-4xl md:text-5xl mb-4 tracking-tighter uppercase block`}
+                    tag="h3"
+                />
+
+                <EditableText
+                    value={eventText}
+                    onChange={handleTextChange('eventText')}
+                    className={`${styles.text} text-2xl md:text-3xl font-bold max-w-4xl mx-auto break-keep leading-snug whitespace-pre-line block mb-8`}
+                    tag="p"
+                    multiline
+                />
+
+                <div className="inline-block">
+                    <div className={`${variant === 'B' ? 'bg-secondary text-primary' : (variant === 'E' ? 'border-2 border-primary text-primary' : 'bg-primary text-white')} font-bold text-lg px-8 py-3 rounded-full shadow-sm`}>
+                        <EditableText
+                            value={badgeText}
+                            onChange={handleTextChange('badgeText')}
+                            className="whitespace-pre-line"
+                        />
+                    </div>
+                </div>
+
+                <p className={`${styles.text} mt-6 opacity-60 text-sm`}>본 이벤트는 조기 종료될 수 있습니다.</p>
+            </div>
+        </div>
+    );
 }
 
 function PackagingInfo({ images, variant, data, onUpdateData }: ModuleProps) {
@@ -972,6 +1161,7 @@ function PackagingInfo({ images, variant, data, onUpdateData }: ModuleProps) {
 
 function CautionNotice({ productData, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
+    const isSolid = variant === 'B';
 
     const defaultCautions = [
         '본 상품은 신선식품으로 단순 변심에 의한 교환/반품이 어렵습니다.',
@@ -991,19 +1181,19 @@ function CautionNotice({ productData, variant, data, onUpdateData }: ModuleProps
     };
 
     return (
-        <div className={`${styles.bg} ${styles.container} p-8`}>
-            <div className="text-center mb-6">
-                <span className="text-3xl mb-2 block">⚠️</span>
-                <h3 className={`text-lg font-bold ${styles.text}`}>주의사항</h3>
+        <div className={`${styles.bg} ${styles.container} p-10 sm:p-12`}>
+            <div className="text-center mb-8">
+                <span className="text-4xl mb-3 block">⚠️</span>
+                <h3 className={`text-xl font-black ${styles.text} uppercase tracking-widest`}>주의사항</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3 max-w-2xl mx-auto">
                 {[0, 1, 2, 3].map(index => (
-                    <div key={index} className={`flex items-start gap-3 p-3 rounded-lg ${styles.bg === 'bg-white' ? 'bg-yellow-50' : 'bg-yellow-900/20'}`}>
-                        <span className="text-yellow-600 text-sm font-bold">•</span>
+                    <div key={index} className={`flex items-start gap-3 p-4 rounded-xl border ${isSolid ? 'border-white/10 bg-white/5' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-red-50/50' : 'bg-white/5'}`}`}>
+                        <span className="text-red-500 text-lg font-bold">•</span>
                         <EditableText
                             value={getCautionData(index)}
                             onChange={handleTextChange(index)}
-                            className={`${styles.text} text-sm opacity-80 flex-1`}
+                            className={`${styles.text} text-sm opacity-70 flex-1 leading-relaxed`}
                             tag="p"
                         />
                     </div>

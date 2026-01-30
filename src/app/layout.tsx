@@ -24,6 +24,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        {/* Korean Web Fonts - Google Fonts (reliable) */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Do+Hyeon&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&family=Gowun+Dodum&display=swap"
+          rel="stylesheet"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${geist.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning

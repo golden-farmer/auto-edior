@@ -79,7 +79,6 @@ export default function Home() {
               >
                 !
               </button>
-              <div className="text-xs text-gray-500">v1.0</div>
             </div>
           </div>
           <HelpTooltip isOpen={showHelp} onClose={() => setShowHelp(false)} />
@@ -125,7 +124,7 @@ export default function Home() {
               {/* Thumbnail Selection */}
               <div className="bg-gray-800/80 rounded-xl border border-gray-700 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-gray-700/50 bg-gray-800">
-                  <h2 className="text-sm font-semibold text-gray-300">4. 썸네일 선택 (500x500)</h2>
+                  <h2 className="text-sm font-semibold text-gray-300">4. 썸네일 선택</h2>
                 </div>
                 <div className="p-4">
                   <ThumbnailSelector />

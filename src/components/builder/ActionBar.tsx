@@ -2,7 +2,11 @@
 
 import React, { useState } from 'react';
 import { useBuilder } from '@/context/BuilderContext';
-import { stitchModuleImages, createZip, downloadBlob, downloadDataUrl } from '@/lib/image-processing';
+import { stitchModuleImages, downloadDataUrl, downloadBlob } from '@/lib/image-processing';
+import { generateThumbnail } from '@/lib/thumbnail';
+import { COLOR_PALETTES } from './ColorSelector';
+import { TEXT_SCALE_VALUES } from '@/types';
+// import JSZip from 'jszip'; // Removed to avoid potential chunk load issues as requested
 
 export function ActionBar() {
     const { state, dispatch } = useBuilder();
@@ -181,6 +185,53 @@ export function ActionBar() {
                 });
             }
 
+            // 6. 3초 요약 카드 생성
+            console.log('Requesting summary card...');
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: 90, message: '요약 카드 생성 중...' } });
+            const summaryRes = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'summary-card',
+                    productName: state.productData.productName,
+                }),
+            });
+            if (summaryRes.ok) {
+                const summaryData = await summaryRes.json();
+                const summaryModule = state.modules.find(m => m.type === 'summary-card');
+                if (summaryModule) {
+                    const parsedData = parseSummaryCard(summaryData.result || '');
+                    dispatch({
+                        type: 'UPDATE_MODULE_DATA',
+                        payload: { id: summaryModule.id, data: parsedData }
+                    });
+                }
+            }
+
+            // 7. 비교 테이블 생성
+            console.log('Requesting comparison table...');
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: 95, message: '비교 테이블 생성 중...' } });
+            const compModule = state.modules.find(m => m.type === 'comparison-table');
+            if (compModule) {
+                const compRes = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'comparison-table',
+                        productName: state.productData.productName,
+                        rowCount: (compModule.data.rowCount as number) || 3
+                    }),
+                });
+                if (compRes.ok) {
+                    const compData = await compRes.json();
+                    const parsedData = parseComparisonTable(compData.result || '');
+                    dispatch({
+                        type: 'UPDATE_MODULE_DATA',
+                        payload: { id: compModule.id, data: parsedData }
+                    });
+                }
+            }
+
             dispatch({ type: 'SET_PROGRESS', payload: { progress: 100, message: 'AI 생성 완료!' } });
             console.log('AI generation complete.');
         } catch (error) {
@@ -273,6 +324,116 @@ export function ActionBar() {
         return tips;
     };
 
+    const parseSummaryCard = (text: string): Record<string, string> => {
+        const newData: Record<string, string> = {};
+        const lines = text.split('\n').filter(l => l.includes('|'));
+        lines.forEach((line, i) => {
+            const parts = line.split('|');
+            if (parts.length >= 3) {
+                // Remove prefixes like "지표 1: " or "1. "
+                newData[`label${i + 1}`] = parts[0].replace(/^.*[:：.]\s*/, '').trim().replace(/[\[\]]/g, '');
+                newData[`value${i + 1}`] = parts[1].trim().replace(/[\[\]]/g, '');
+                newData[`desc${i + 1}`] = parts[2].trim().replace(/[\[\]]/g, '');
+            }
+        });
+        return newData;
+    };
+
+    const parseComparisonTable = (text: string): Record<string, string> => {
+        const newData: Record<string, string> = {};
+        const lines = text.split('\n').filter(l => l.includes('|'));
+        lines.forEach((line, i) => {
+            const parts = line.split('|');
+            if (parts.length >= 3) {
+                // Remove prefixes like "항목 1: " or "1. "
+                newData[`row${i + 1}Title`] = parts[0].replace(/^.*[:：.]\s*/, '').trim().replace(/[\[\]]/g, '');
+                newData[`row${i + 1}Our`] = parts[1].trim().replace(/[\[\]]/g, '');
+                newData[`row${i + 1}Comp`] = parts[2].trim().replace(/[\[\]]/g, '');
+            }
+        });
+        return newData;
+    };
+
+
+    // 개별 일괄 다운로드 (상세페이지 + 선택된 썸네일)
+    const handleDownloadAll = async () => {
+        console.log('--- Download Started [Ver: 2026-01-31-0610-FontSwap] ---');
+        const container = document.getElementById('preview-container');
+        if (!container) return;
+
+        dispatch({ type: 'SET_GENERATING', payload: true });
+        dispatch({ type: 'SET_PROGRESS', payload: { progress: 5, message: '이미지 생성 준비 중...' } });
+
+        try {
+            // 1. 상세페이지 캡처 (모듈별 캡처 + 스타일 주입 방식으로 변경) - 안정성 확보
+            const moduleElements = Array.from(container.querySelectorAll('.module-item')) as HTMLElement[];
+
+            const palette = COLOR_PALETTES.find(p => p.value === state.colorPalette) || COLOR_PALETTES[0];
+            const captureOptions = {
+                titleFont: state.titleFont,
+                bodyFont: state.bodyFont,
+                textScale: TEXT_SCALE_VALUES[state.textScale],
+                primaryColor: palette.primary,
+                secondaryColor: palette.secondary,
+                textColor: palette.text
+            };
+
+            const stitchResult = await stitchModuleImages(moduleElements, (current, total) => {
+                dispatch({
+                    type: 'SET_PROGRESS', payload: {
+                        progress: 5 + (current / total) * 60,
+                        message: `상세페이지 캡처 중 (${current}/${total})...`
+                    }
+                });
+            }, captureOptions);
+
+            // 2. 썸네일 생성
+            const thumbnailImages: { name: string, dataUrl: string }[] = [];
+            const selectedIds = state.selectedThumbnailIds;
+
+            if (selectedIds.length > 0) {
+                dispatch({ type: 'SET_PROGRESS', payload: { progress: 70, message: '썸네일 생성 중...' } });
+                for (let i = 0; i < selectedIds.length; i++) {
+                    const id = selectedIds[i];
+                    const image = state.images.find(img => img.id === id);
+                    if (image) {
+                        const imgSrc = image.transformedUrl || image.previewUrl;
+                        // 첫 번째는 대표 썸네일(1000), 나머지는 추가(500)
+                        const size = i === 0 ? 1000 : 500;
+                        const thumbDataUrl = await generateThumbnail(imgSrc, i === 0 ? state.productData.productName : '', size);
+                        thumbnailImages.push({
+                            name: i === 0 ? `00_대표썸네일` : `썸네일_${i}`,
+                            dataUrl: thumbDataUrl
+                        });
+                    }
+                }
+            }
+
+            // 3. 개별 파일 다운로드
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: 90, message: '파일 다운로드 중...' } });
+
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const productName = state.productData.productName || '상품';
+            const prefix = `[${today}]_[${productName}]`;
+
+            // 상세페이지 다운로드
+            stitchResult.images.forEach((imgData, idx) => {
+                downloadDataUrl(imgData, `${prefix}_상세페이지_${idx + 1}.png`);
+            });
+
+            // 썸네일 다운로드
+            thumbnailImages.forEach(thumb => {
+                downloadDataUrl(thumb.dataUrl, `${prefix}_${thumb.name}.png`);
+            });
+
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: 100, message: '다운로드 완료!' } });
+        } catch (error: any) {
+            console.error('Download error 상세:', error);
+            alert(`다운로드 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+        } finally {
+            dispatch({ type: 'SET_GENERATING', payload: false });
+        }
+    };
 
     const handleDownload = async () => {
         const container = document.getElementById('preview-container');
@@ -284,6 +445,16 @@ export function ActionBar() {
         try {
             const moduleElements = Array.from(container.querySelectorAll('.module-item')) as HTMLElement[];
 
+            const palette = COLOR_PALETTES.find(p => p.value === state.colorPalette) || COLOR_PALETTES[0];
+            const captureOptions = {
+                titleFont: state.titleFont,
+                bodyFont: state.bodyFont,
+                textScale: TEXT_SCALE_VALUES[state.textScale],
+                primaryColor: palette.primary,
+                secondaryColor: palette.secondary,
+                textColor: palette.text
+            };
+
             const result = await stitchModuleImages(moduleElements, (current, total) => {
                 dispatch({
                     type: 'SET_PROGRESS', payload: {
@@ -291,21 +462,20 @@ export function ActionBar() {
                         message: `모듈 캡처 중 (${current}/${total})...`
                     }
                 });
-            });
+            }, captureOptions);
 
             dispatch({ type: 'SET_PROGRESS', payload: { progress: 90, message: '파일 생성 중...' } });
 
-            if (result.needsZip) {
-                const zipBlob = await createZip(result.images, state.productData.productName || 'detail-page');
-                downloadBlob(zipBlob, `${state.productData.productName || 'detail-page'}.zip`);
-            } else {
+            // Always download as single stitched image (stitch all module images into one long image)
+            // If multiple images, we use the first one (already stitched by stitchModuleImages)
+            if (result.images.length > 0) {
                 downloadDataUrl(result.images[0], `${state.productData.productName || 'detail-page'}.png`);
             }
 
             dispatch({ type: 'SET_PROGRESS', payload: { progress: 100, message: '다운로드 완료!' } });
-        } catch (error) {
-            console.error('Download error:', error);
-            alert('다운로드 중 오류가 발생했습니다.');
+        } catch (error: any) {
+            console.error('Download error 상세:', error);
+            alert(`다운로드 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
         } finally {
             dispatch({ type: 'SET_GENERATING', payload: false });
         }
@@ -340,15 +510,15 @@ export function ActionBar() {
                         ) : (
                             <span>✨</span>
                         )}
-                        AI 텍스트 생성
+                        AI 텍스트
                     </button>
 
                     <button
-                        onClick={handleDownload}
+                        onClick={handleDownloadAll}
                         disabled={state.isGenerating}
-                        className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 text-white rounded-lg font-bold transition-all shadow-lg shadow-emerald-500/25 flex items-center gap-2"
+                        className="px-8 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 text-white rounded-lg font-bold transition-all shadow-lg shadow-emerald-500/25 flex items-center gap-2"
                     >
-                        📥 다운로드
+                        📥 다운로드 (전체)
                     </button>
                 </div>
             </div>

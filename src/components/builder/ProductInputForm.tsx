@@ -14,8 +14,6 @@ export function ProductInputForm() {
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-100">상품 정보 입력</h3>
-
             <div className="grid gap-4">
                 <InputField
                     label="상품명"
@@ -32,49 +30,12 @@ export function ProductInputForm() {
                     rows={3}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
-                    <InputField
-                        label="원산지"
-                        value={productData.origin}
-                        onChange={(v) => updateField('origin', v)}
-                        placeholder="예: 경북 성주"
-                    />
-                    <InputField
-                        label="농부/생산자명"
-                        value={productData.farmerName}
-                        onChange={(v) => updateField('farmerName', v)}
-                        placeholder="예: 김성주 농부"
-                    />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                    <InputField
-                        label="가격"
-                        value={productData.price}
-                        onChange={(v) => updateField('price', v)}
-                        placeholder="예: 29,900원"
-                    />
-                    <InputField
-                        label="당도 (Brix)"
-                        value={productData.sweetness}
-                        onChange={(v) => updateField('sweetness', v)}
-                        placeholder="예: 14~16"
-                    />
-                    <InputField
-                        label="사이즈"
-                        value={productData.size}
-                        onChange={(v) => updateField('size', v)}
-                        placeholder="예: 특대/10과"
-                    />
-                </div>
-
                 <InputField
                     label="CS 전화번호"
                     value={productData.csPhone}
                     onChange={(v) => updateField('csPhone', v)}
                     placeholder="예: 1588-0000"
                 />
-
             </div>
         </div>
     );

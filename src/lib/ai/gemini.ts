@@ -16,17 +16,17 @@ export async function generateHookingCopy(fruitName: string, imageAnalysis: stri
 
 [Instruction] 입력된 {과일_이름}과 사진 분석 정보를 바탕으로 다음 조건에 맞춰 문구를 작성해.
 
-톤앤매너: 산지직송의 싱싱함이 느껴지는 신선한 톤.
-형식: 한 줄의 짧고 강렬한 문장.
-제약: 공백 포함 20자 이내. 과도한 특수문자 금지.
+톤앤매너: 산지직송의 신선함과 신뢰감이 느껴지는 정갈한 톤.
+형식: 한 줄의 짧고 강렬한 문장. (영어 사용 절대 금지)
+제약: 공백 포함 15자 이내. 최대한 간결하게 핵심만 전달.
 
-예시: "한 입 베어 무는 순간, 과수원이 입안으로 들어옵니다.", "지금껏 알던 사과는 잊으세요. 압도적 당도 16Brix."
+예시: "농장에서 갓 수확한 압도적인 달콤함", "지금껏 알던 맛과는 다른 품격"
 
 [Input] 
 과일 이름: ${fruitName}
 분석 데이터: ${imageAnalysis}
 
-[Output] 한 줄의 후킹 문구만 출력해. 다른 설명 없이 문구만.`;
+[Output] 한 줄의 짧은 한국어 후킹 문구만 출력해. 다른 설명 없이 데이터만.`;
 
     return await callGemini(prompt);
 }
@@ -37,9 +37,9 @@ export async function generateSellingPoints(fruitName: string, imageAnalysis: st
 
 [Instruction] 다음 3가지 영역에 맞춰 소구점을 도출해 줘.
 
-1. 맛과 당도: 수치(Brix)나 식감을 강조.
-2. 신선도와 산지: 수확 시점이나 재배 환경의 특별함.
-3. 안전과 신뢰: 포장 상태나 품질 보증 시스템.
+1. 맛과 당도: 압도적 달콤함이나 식감을 강조. (영어 금지)
+2. 신선도와 산지: 수확 당일 발송이나 최적의 재배 환경.
+3. 안전과 신뢰: 철저한 선별과 품질 보증.
 
 [Input]
 과일 이름: ${fruitName}
@@ -50,7 +50,7 @@ export async function generateSellingPoints(fruitName: string, imageAnalysis: st
 소구점 2: [제목] / [상세설명 1줄]
 소구점 3: [제목] / [상세설명 1줄]
 
-[Constraint] 제목은 10자 이내, 상세설명은 20자 이내로 짧고 간결하게 작성할 것. 포맷 그대로 출력해.`;
+[Constraint] 제목은 8자 이내, 상세설명은 15자 이내로 최대한 짧고 간결하게 한국어로만 작성할 것. 포맷 그대로 출력해.`;
 
     return await callGemini(prompt);
 }
@@ -105,6 +105,57 @@ export async function generateCautionNotice(productName: string): Promise<string
 
     const response = await callGemini(prompt);
     return response;
+}
+
+export async function generateComparisonTableData(fruitName: string, rowCount: number): Promise<string> {
+    const prompt = `[System Role] 너는 연 매출 100억 이상의 성과를 내는 프리미엄 신선식품 전문 MD이자 카피라이터야. 
+    [Instruction] ${fruitName}을 주제로 총 ${rowCount}개의 압도적인 비교 항목을 작성해줘. 
+    단순한 비교가 아니라, 타사 제품을 압도하는 구체적이고 전문적인 '럭셔리' 카피를 사용해.
+    
+    [Writing Rules]
+    - "프리미엄급", "좋음" 같은 평범한 단어 사용 금지.
+    - 대신 "상위 1% 정규품", "비파괴 당도 선별", "산지 직결 저온 물류" 같은 전문 용어 사용.
+    - 영어 단어 절대 사용 금지 (Brix 대신 '브릭스' 또는 '당도' 사용).
+    - 최대한 간결하고 강렬한 한국어 카피 위주로 작성.
+
+    [Output Format]
+    항목 1: [비교제목] | [우리 제품] | [일반 제품]
+    ... (총 ${rowCount}개)
+
+    [Constraint] 
+    - 비교 제목은 4자 이내 (예: 당도, 선별, 산지, 신선도, 포장)
+    - 우리 제품 특징은 12자 이내 (한국어로만 간결하게)
+    - 일반 제품 특징은 12자 이내
+    - 파이프(|) 기호로 구분. 다른 설명 없이 데이터만 출력.
+    
+    [Input] 과일 이름: ${fruitName}`;
+
+    return await callGemini(prompt);
+}
+
+export async function generateSummaryCardData(fruitName: string): Promise<string> {
+    const prompt = `[System Role] 너는 명품 과일 브랜드의 기획실장이야. 
+    [Instruction] ${fruitName}의 핵심 가치 3가지를 '전문성'과 '데이터'가 돋보이게 선정해줘.
+    
+    [Writing Rules]
+    - 영어 표현 전면 배제 (BRIX, GRADE, ORIGIN 등 절대 사용 금지).
+    - 모든 용어는 한국어 전문 용어로 대체 (예: 당도, 등급, 원산지).
+    - 최대한 간결하고 압축적인 문구로 핵심만 전달.
+    
+    [Output Format]
+    지표 1: [항목명] | [구체적 값] | [강조문구]
+    지표 2: [항목명] | [구체적 값] | [강조문구]
+    지표 3: [항목명] | [구체적 값] | [강조문구]
+
+    [Constraint]
+    - 항목명: 8자 이내 한국어 (예: 당도 선별, 수확 일자, 정밀 품질)
+    - 값: 12자 이내 구체적인 데이터 (예: 15브릭스 이상, 새벽 수확, 상위 1% 제품)
+    - 강조문구: 10자 이내 한국어 (예: 당도 보장, 신선함 유지, 품질 검수)
+    - 영어 사용 절대 금지. 파이프(|) 기호로 구분. 데이터만 출력.
+    
+    [Input] 과일 이름: ${fruitName}`;
+
+    return await callGemini(prompt);
 }
 
 export async function analyzeProductImage(imageBase64: string): Promise<string> {

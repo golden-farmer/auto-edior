@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { BuilderState, ModuleConfig, ProductData, ImageUpload, DEFAULT_MODULES, DEFAULT_PRODUCT_DATA } from '@/types';
+import { BuilderState, ModuleConfig, ProductData, ImageUpload, DEFAULT_MODULES, DEFAULT_PRODUCT_DATA, FontType, TextScale } from '@/types';
 
 type BuilderAction =
     | { type: 'SET_IMAGES'; payload: ImageUpload[] }
@@ -18,6 +18,11 @@ type BuilderAction =
     | { type: 'SET_PRODUCT_DATA'; payload: Partial<ProductData> }
     | { type: 'SET_GENERATING'; payload: boolean }
     | { type: 'SET_PROGRESS'; payload: { progress: number; message: string } }
+    | { type: 'SET_TITLE_FONT'; payload: FontType }
+    | { type: 'SET_BODY_FONT'; payload: FontType }
+    | { type: 'SET_TEXT_SCALE'; payload: TextScale }
+    | { type: 'SET_COLOR_PALETTE'; payload: string }
+    | { type: 'TOGGLE_THUMBNAIL_SELECTION'; payload: string }
     | { type: 'RESET' };
 
 const initialState: BuilderState = {
@@ -27,6 +32,11 @@ const initialState: BuilderState = {
     isGenerating: false,
     progress: 0,
     progressMessage: '',
+    titleFont: 'Gowun Dodum',
+    bodyFont: 'Gowun Dodum',
+    textScale: 'normal',
+    colorPalette: 'apple',
+    selectedThumbnailIds: [],
 };
 
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
@@ -43,7 +53,11 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
             };
             return { ...state, images: [...state.images, newImage] };
         case 'REMOVE_IMAGE':
-            return { ...state, images: state.images.filter(img => img.id !== action.payload) };
+            return {
+                ...state,
+                images: state.images.filter(img => img.id !== action.payload),
+                selectedThumbnailIds: state.selectedThumbnailIds.filter(id => id !== action.payload)
+            };
         case 'UPDATE_IMAGE':
             return {
                 ...state,
@@ -87,6 +101,23 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
             return { ...state, isGenerating: action.payload };
         case 'SET_PROGRESS':
             return { ...state, progress: action.payload.progress, progressMessage: action.payload.message };
+        case 'SET_TITLE_FONT':
+            return { ...state, titleFont: action.payload };
+        case 'SET_BODY_FONT':
+            return { ...state, bodyFont: action.payload };
+        case 'SET_TEXT_SCALE':
+            return { ...state, textScale: action.payload };
+        case 'SET_COLOR_PALETTE':
+            return { ...state, colorPalette: action.payload };
+        case 'TOGGLE_THUMBNAIL_SELECTION':
+            const id = action.payload;
+            const current = state.selectedThumbnailIds;
+            if (current.includes(id)) {
+                return { ...state, selectedThumbnailIds: current.filter(i => i !== id) };
+            } else {
+                if (current.length >= 10) return state;
+                return { ...state, selectedThumbnailIds: [...current, id] };
+            }
         case 'RESET':
             return initialState;
         default:
