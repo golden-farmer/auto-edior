@@ -1,8 +1,84 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useState, useEffect } from 'react';
 import { useBuilder } from '@/context/BuilderContext';
-import { ModuleConfig, ProductData, ImageUpload, TEXT_SCALE_VALUES, TextScale } from '@/types';
+import { ModuleConfig, ProductData, ImageUpload, TEXT_SCALE_VALUES, TextScale, TextStyleOverride } from '@/types';
+import { useBuilderStore } from '@/store/useBuilderStore';
+
+type ModuleTextStyleContextValue = {
+    moduleId: string;
+    getNextTextKey: () => string;
+    textStyles: Record<string, TextStyleOverride>;
+};
+
+const ModuleTextStyleContext = createContext<ModuleTextStyleContextValue | null>(null);
+
+const TEXT_COLOR_CLASS_PATTERN = /^text-([a-z]+(?:-[a-z0-9]+)*)(?:\/(\d+))?$/;
+const TEXT_SIZE_OR_ALIGN_TOKENS = new Set([
+    'text-left',
+    'text-center',
+    'text-right',
+    'text-justify',
+    'text-start',
+    'text-end',
+    'text-xs',
+    'text-sm',
+    'text-base',
+    'text-lg',
+    'text-xl',
+    'text-2xl',
+    'text-3xl',
+    'text-4xl',
+    'text-5xl',
+    'text-6xl',
+    'text-7xl',
+]);
+
+function getThemeColorStyle(className: string): React.CSSProperties {
+    const textColorClass = className
+        .split(/\s+/)
+        .find((token) => {
+            if (!token.startsWith('text-')) return false;
+            if (TEXT_SIZE_OR_ALIGN_TOKENS.has(token)) return false;
+            if (token.startsWith('text-[')) return false;
+            return TEXT_COLOR_CLASS_PATTERN.test(token);
+        });
+
+    if (!textColorClass) {
+        return {};
+    }
+
+    const match = textColorClass.match(TEXT_COLOR_CLASS_PATTERN);
+    if (!match) {
+        return {};
+    }
+
+    const [, colorToken, opacityToken] = match;
+    const opacity = opacityToken ? Number(opacityToken) : undefined;
+
+    let baseColor: string | undefined;
+    if (colorToken === 'primary') baseColor = 'var(--color-primary)';
+    else if (colorToken === 'secondary') baseColor = 'var(--color-secondary)';
+    else if (colorToken === 'main') baseColor = 'var(--color-text)';
+    else if (colorToken === 'white') baseColor = '#ffffff';
+    else if (colorToken === 'black') baseColor = '#000000';
+    else if (colorToken.startsWith('gray-')) {
+        const shade = Number(colorToken.split('-')[1] ?? 500);
+        baseColor = shade >= 700 ? 'var(--color-text)' : 'var(--color-muted)';
+    }
+
+    if (!baseColor) {
+        return {};
+    }
+
+    if (!opacity || Number.isNaN(opacity) || opacity >= 100) {
+        return { color: baseColor };
+    }
+
+    return {
+        color: `color-mix(in srgb, ${baseColor} ${opacity}%, transparent)`,
+    };
+}
 
 // Module renderer that displays the appropriate module based on type
 // Updated to accept onUpdateData
@@ -19,29 +95,45 @@ export function ModuleRenderer({
 }) {
     // We pass onUpdateData to commonProps so specific modules can use it
     const commonProps = { productData, images, data: module.data, variant: module.variant, onUpdateData };
+    const textIndexRef = useRef(0);
+    textIndexRef.current = 0;
 
+    const textStyleContext = useMemo<ModuleTextStyleContextValue>(() => ({
+        moduleId: module.id,
+        getNextTextKey: () => `text-${textIndexRef.current++}`,
+        textStyles: (module.data._textStyles as Record<string, TextStyleOverride> | undefined) ?? {},
+    }), [module.data, module.id]);
+
+    let renderedModule: React.ReactNode;
     switch (module.type) {
-        case 'hooking-banner': return <HookingBanner {...commonProps} />;
-        case 'hero-image': return <HeroImage {...commonProps} />;
-        case 'summary-card': return <SummaryCard {...commonProps} />;
-        case 'review-summary': return <ReviewSummary {...commonProps} />;
-        case 'farmer-story': return <FarmerStory {...commonProps} />;
+        case 'hero-image': renderedModule = <HeroImage {...commonProps} />; break;
+        case 'summary-card': renderedModule = <SummaryCard {...commonProps} />; break;
+        case 'review-summary': renderedModule = <ReviewSummary {...commonProps} />; break;
+        case 'farmer-story': renderedModule = <FarmerStory {...commonProps} />; break;
         case 'benefit-point-1':
         case 'benefit-point-2':
         case 'benefit-point-3':
-            return <BenefitPoint index={parseInt(module.type.slice(-1))} {...commonProps} />;
-        case 'comparison-table': return <ComparisonTable {...commonProps} />;
-        case 'size-guide': return <SizeGuide {...commonProps} />;
-        case 'harvest-process': return <HarvestProcess {...commonProps} />;
-        case 'sweetness-check': return <SweetnessCheck {...commonProps} />;
-        case 'taste-tip': return <TasteTip {...commonProps} />;
-        case 'event-highlight': return <EventHighlight {...commonProps} />;
-        case 'packaging-info': return <PackagingInfo {...commonProps} />;
-        case 'caution-notice': return <CautionNotice {...commonProps} />;
-        case 'cs-info': return <CSInfo {...commonProps} />;
+            renderedModule = <BenefitPoint index={parseInt(module.type.slice(-1))} {...commonProps} />; break;
+        case 'comparison-table': renderedModule = <ComparisonTable {...commonProps} />; break;
+        case 'size-guide': renderedModule = <SizeGuide {...commonProps} />; break;
+        case 'harvest-process': renderedModule = <HarvestProcess {...commonProps} />; break;
+        case 'home-use-notice': renderedModule = <HomeUseNotice {...commonProps} />; break;
+        case 'option-list': renderedModule = <OptionList {...commonProps} />; break;
+        case 'sweetness-check': renderedModule = <SweetnessCheck {...commonProps} />; break;
+        case 'taste-tip': renderedModule = <TasteTip {...commonProps} />; break;
+        case 'event-highlight': renderedModule = <EventHighlight {...commonProps} />; break;
+        case 'packaging-info': renderedModule = <PackagingInfo {...commonProps} />; break;
+        case 'caution-notice': renderedModule = <CautionNotice {...commonProps} />; break;
+        case 'cs-info': renderedModule = <CSInfo {...commonProps} />; break;
         default:
-            return <div className="p-4 bg-gray-800 text-gray-400">Unknown module: {module.type}</div>;
+            renderedModule = <div className="p-4 bg-gray-800 text-gray-400">Unknown module: {module.type}</div>;
     }
+
+    return (
+        <ModuleTextStyleContext.Provider value={textStyleContext}>
+            {renderedModule}
+        </ModuleTextStyleContext.Provider>
+    );
 }
 
 // Common props interface
@@ -61,62 +153,117 @@ interface ModuleProps {
 // Type E: 보더 라인 - 전체를 감싸는 이중 테두리, 중앙 정렬
 const getThemeStyles = (variant: string) => {
     switch (variant) {
-        // Type A: 더 미니멀 (Apple Style)
+        // Type A: 퓨어 프레시 - 과일 본연의 색을 살리는 깔끔한 여백
         case 'A':
             return {
                 bg: 'bg-white',
-                text: 'text-main',
+                text: 'text-gray-900',
                 accent: 'text-primary',
                 border: 'border-gray-100',
-                font: 'font-sans',
-                container: ''
+                font: 'font-sans tracking-tight',
+                container: 'bg-white'
             };
 
-        // Type B: 솔리드 블록 - Primary Color 배경
+        // Type B: 과즙 팡팡 - 메인 컬러로 가득 채운 생동감
         case 'B':
             return {
                 bg: 'bg-primary',
                 text: 'text-white',
-                accent: 'text-secondary opacity-90',
-                border: 'border-primary brightness-90',
-                font: 'font-bold',
-                container: 'py-2'
+                accent: 'text-secondary/90',
+                border: 'border-white/20',
+                font: 'font-black tracking-tight',
+                container: 'py-4 relative'
             };
 
-        // Type C: 라운드 카드 - 연한 배경 + 둥근 박스 + 그림자
+        // Type C: 말랑 쫀득 - 둥글둥글 귀여운 모서리와 부드러운 파스텔
         case 'C':
             return {
                 bg: 'bg-secondary',
-                text: 'text-main',
+                text: 'text-gray-800',
                 accent: 'text-primary',
-                border: 'border-gray-200',
-                font: 'font-medium',
-                container: 'rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] mx-4 my-3 bg-white border border-white'
+                border: 'border-white',
+                font: 'font-bold',
+                container: 'rounded-[40px] shadow-[0_8px_30px_rgba(0,0,0,0.06)] mx-4 my-4 bg-white border-[6px] border-white/50 relative'
             };
 
-        // Type D: 감성 편지 - 1px 실선 테두리 + 손글씨 폰트
+        // Type D: 농부의 진심 - 따뜻한 아이보리 배경과 아날로그 감성
         case 'D':
             return {
-                bg: 'bg-[#fffef5]', // Warm ivory remains as signature
-                text: 'text-main',
+                bg: 'bg-[#FDFAEE]',
+                text: 'text-[#5C4D42]',
                 accent: 'text-primary',
                 border: 'border-primary/30',
                 font: 'font-serif',
-                container: 'border border-gray-300 mx-4 my-2'
+                container: 'border-[2px] border-dashed border-primary/40 mx-4 my-4 rounded-xl shadow-sm bg-white'
             };
 
-        // Type E: 보더 라인 - 이중 테두리, 중앙 정렬
+        // Type E: 고당도 명품 - 신뢰를 주는 이중 테두리와 프리미엄 분위기
         case 'E':
             return {
                 bg: 'bg-white',
-                text: 'text-main',
+                text: 'text-gray-900',
                 accent: 'text-primary',
                 border: 'border-primary',
-                font: 'font-semibold',
-                container: 'border-4 border-double border-primary mx-4 my-2 text-center mx-auto'
+                font: 'font-serif tracking-wide',
+                container: 'border-[6px] border-double border-primary/30 mx-4 my-4 shadow-xl bg-white relative'
             };
 
-        default: return { bg: 'bg-white', text: 'text-main', accent: 'text-primary', border: 'border-gray-100', container: '' };
+        // Type F: 매거진 픽 - 세련된 에디토리얼 룩, 타임리스 모던
+        case 'F':
+            return {
+                bg: 'bg-white',
+                text: 'text-black', // 흑백 대비 극대화
+                accent: 'text-primary',
+                border: 'border-gray-900',
+                font: 'font-serif tracking-tighter', // 명조계열, 좁은 자간으로 세련되게
+                container: 'bg-white border-b-2 border-black/10' // 매거진 느낌의 깔끔한 섹션 구분
+            };
+
+        // Type G: 팝 아트 - 굵은 테두리와 그림자, 팝하고 통통 튀는 감성
+        case 'G':
+            return {
+                bg: 'bg-white',
+                text: 'text-black',
+                accent: 'text-primary',
+                border: 'border-black',
+                font: 'font-black uppercase',
+                container: 'border-[3px] border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mx-4 my-4 bg-white relative'
+            };
+
+        // Type H: 오가닉 에코 - 친환경 종이 질감, 편안한 자연 색상
+        case 'H':
+            return {
+                bg: 'bg-[#F4EFEA]', // 웜 스톤, 크라프트지 느낌
+                text: 'text-[#3E3832]',
+                accent: 'text-primary',
+                border: 'border-[#E0D5C1]',
+                font: 'font-medium',
+                container: 'bg-[#FCFAF8] mx-4 my-4 rounded-2xl border-2 border-[#E0D5C1] shadow-sm relative'
+            };
+
+        // Type I: 타임 딜 - 세일 강조, 강렬한 액센트, 시선 집중
+        case 'I':
+            return {
+                bg: 'bg-gray-900', // 다크 배경에 형광 엑센트 대비
+                text: 'text-white',
+                accent: 'text-primary',
+                border: 'border-primary',
+                font: 'font-black italic tracking-tighter', // 빠르고 강렬한 느낌
+                container: 'border-l-4 border-primary bg-gray-800 mx-4 my-4 shadow-lg relative' // 스포츠/딜 느낌 박스
+            };
+
+        // Type J: 블랙 라벨 - 최상급 퀄리티, 명품 다크 모드
+        case 'J':
+            return {
+                bg: 'bg-gray-950',
+                text: 'text-gray-100',
+                accent: 'text-primary',
+                border: 'border-gray-800',
+                font: 'font-serif tracking-widest',
+                container: 'bg-black border border-gray-800 mx-4 my-4 shadow-2xl relative'
+            };
+
+        default: return { bg: 'bg-white', text: 'text-gray-900', accent: 'text-primary', border: 'border-gray-100', font: 'font-sans', container: '' };
     }
 };
 
@@ -162,6 +309,45 @@ function EditableText({
     tag?: 'span' | 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'div';
     textScale?: TextScale;
 }) {
+    const moduleTextContext = useContext(ModuleTextStyleContext);
+    const textKeyRef = useRef<string | null>(null);
+    if (!textKeyRef.current) {
+        textKeyRef.current = moduleTextContext?.getNextTextKey() ?? 'text-0';
+    }
+
+    const textStyle = moduleTextContext?.textStyles[textKeyRef.current] ?? {};
+    const setSelectedTextTarget = useBuilderStore((state) => state.setSelectedTextTarget);
+    const themeColorStyle = getThemeColorStyle(className);
+    const rgbToHex = (rgb: string) => {
+        const matches = rgb.match(/\d+/g);
+        if (!matches || matches.length < 3) return '#111827';
+        const [r, g, b] = matches.slice(0, 3).map(Number);
+        return `#${[r, g, b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+    };
+    const parseFontWeight = (fontWeight: string) => {
+        const parsed = Number.parseInt(fontWeight, 10);
+        return Number.isNaN(parsed) ? 400 : parsed;
+    };
+    const parseLetterSpacing = (letterSpacing: string) => {
+        if (!letterSpacing || letterSpacing === 'normal') return 0;
+        const parsed = Number.parseFloat(letterSpacing);
+        return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    const parseLineHeight = (lineHeight: string, fontSize: number) => {
+        if (!lineHeight || lineHeight === 'normal' || !fontSize) return 1.4;
+        const parsed = Number.parseFloat(lineHeight);
+        if (Number.isNaN(parsed)) return 1.4;
+        if (lineHeight.endsWith('px')) {
+            return Number((parsed / fontSize).toFixed(2));
+        }
+        return Number(parsed.toFixed(2));
+    };
+    const getResolvedTextAlign = (textAlign: string): 'left' | 'center' | 'right' => {
+        if (textAlign === 'center') return 'center';
+        if (textAlign === 'right' || textAlign === 'end') return 'right';
+        return 'left';
+    };
+
     const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
         const newValue = e.currentTarget.innerText;
         if (onChange && newValue !== value) {
@@ -180,6 +366,12 @@ function EditableText({
     const isTitle = ['h1', 'h2', 'h3', 'h4'].includes(Tag);
     const fontFamily = isTitle ? 'var(--font-title)' : 'var(--font-body)';
     const scaleValue = TEXT_SCALE_VALUES[textScale];
+    const hasCustomColor = !!textStyle.color;
+    const hasCustomFontSize = !!textStyle.fontSize;
+    const hasCustomFontWeight = typeof textStyle.fontWeight === 'number';
+    const hasCustomTextAlign = !!textStyle.textAlign;
+    const hasCustomLetterSpacing = typeof textStyle.letterSpacing === 'number';
+    const hasCustomLineHeight = typeof textStyle.lineHeight === 'number';
 
     return (
         <Tag
@@ -187,10 +379,50 @@ function EditableText({
             suppressContentEditableWarning
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className={`${className} outline-none cursor-text hover:ring-2 hover:ring-emerald-400/50 focus:ring-2 focus:ring-emerald-500 rounded px-1 -mx-1 transition-all`}
+            onClick={(e) => {
+                if (!moduleTextContext || !textKeyRef.current) return;
+                const computedStyle = window.getComputedStyle(e.currentTarget);
+                setSelectedTextTarget({
+                    moduleId: moduleTextContext.moduleId,
+                    textKey: textKeyRef.current,
+                    textValue: value,
+                    style: textStyle,
+                    resolvedColor: computedStyle ? rgbToHex(computedStyle.color) : undefined,
+                    resolvedFontSize: computedStyle ? Number.parseFloat(computedStyle.fontSize) : undefined,
+                    resolvedFontWeight: computedStyle ? parseFontWeight(computedStyle.fontWeight) : undefined,
+                    resolvedTextAlign: computedStyle ? getResolvedTextAlign(computedStyle.textAlign) : undefined,
+                    resolvedLetterSpacing: computedStyle ? parseLetterSpacing(computedStyle.letterSpacing) : undefined,
+                    resolvedLineHeight: computedStyle
+                        ? parseLineHeight(computedStyle.lineHeight, Number.parseFloat(computedStyle.fontSize))
+                        : undefined,
+                });
+            }}
+            data-editable-text="true"
+            data-module-id={moduleTextContext?.moduleId}
+            data-text-key={textKeyRef.current}
+            data-has-custom-color={hasCustomColor ? 'true' : 'false'}
+            data-has-custom-font-size={hasCustomFontSize ? 'true' : 'false'}
+            data-has-custom-font-weight={hasCustomFontWeight ? 'true' : 'false'}
+            data-has-custom-text-align={hasCustomTextAlign ? 'true' : 'false'}
+            data-has-custom-letter-spacing={hasCustomLetterSpacing ? 'true' : 'false'}
+            data-has-custom-line-height={hasCustomLineHeight ? 'true' : 'false'}
+            className={`${className} ${multiline ? 'whitespace-pre-wrap break-words' : ''} ${hasCustomColor ? 'editable-text-custom-color' : ''} ${hasCustomFontSize ? 'editable-text-custom-size' : ''} ${hasCustomFontWeight ? 'editable-text-custom-weight' : ''} ${hasCustomTextAlign ? 'editable-text-custom-align' : ''} ${hasCustomLetterSpacing ? 'editable-text-custom-letter-spacing' : ''} ${hasCustomLineHeight ? 'editable-text-custom-line-height' : ''} outline-none cursor-text hover:ring-2 hover:ring-blue-400/50 focus:ring-2 focus:ring-blue-500 rounded px-1 -mx-1 transition-all`}
             style={{
                 minWidth: '20px',
                 fontFamily,
+                ...themeColorStyle,
+                color: textStyle.color ?? themeColorStyle.color,
+                fontSize: textStyle.fontSize ? `${textStyle.fontSize}px` : undefined,
+                fontWeight: textStyle.fontWeight,
+                textAlign: textStyle.textAlign,
+                letterSpacing: typeof textStyle.letterSpacing === 'number' ? `${textStyle.letterSpacing}px` : undefined,
+                lineHeight: textStyle.lineHeight,
+                ['--editable-custom-color' as string]: textStyle.color ?? undefined,
+                ['--editable-custom-font-size' as string]: textStyle.fontSize ? `${textStyle.fontSize}px` : undefined,
+                ['--editable-custom-font-weight' as string]: textStyle.fontWeight ? `${textStyle.fontWeight}` : undefined,
+                ['--editable-custom-text-align' as string]: textStyle.textAlign ?? undefined,
+                ['--editable-custom-letter-spacing' as string]: typeof textStyle.letterSpacing === 'number' ? `${textStyle.letterSpacing}px` : undefined,
+                ['--editable-custom-line-height' as string]: textStyle.lineHeight ? `${textStyle.lineHeight}` : undefined,
             }}
         >
             {value || placeholder}
@@ -223,15 +455,15 @@ function DroppableImageZone({
 
     return (
         <div
-            className={`${className} ${isDragOver ? 'ring-4 ring-emerald-400 scale-[1.02]' : ''} transition-all`}
+            className={`${className} ${isDragOver ? 'ring-4 ring-blue-400 scale-[1.02]' : ''} transition-all`}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
         >
             {children}
             {isDragOver && (
-                <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center z-50 pointer-events-none">
-                    <span className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg">
+                <div className="absolute inset-0 bg-blue-500/30 flex items-center justify-center z-50 pointer-events-none">
+                    <span className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg">
                         {placeholder}
                     </span>
                 </div>
@@ -352,7 +584,7 @@ function ResizableImageContainer({
         document.body.style.cursor = 'ns-resize';
     }
 
-    const handleStyle = "absolute w-5 h-5 bg-white border-2 border-emerald-500 rounded-full z-50 opacity-0 group-hover/resize:opacity-100 transition-opacity cursor-ns-resize shadow-md hover:scale-125 hover:bg-emerald-50 no-capture";
+    const handleStyle = "absolute w-5 h-5 bg-white border-2 border-blue-500 rounded-full z-50 opacity-0 group-hover/resize:opacity-100 transition-opacity cursor-ns-resize shadow-md hover:scale-125 hover:bg-blue-50 no-capture";
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -399,7 +631,7 @@ function ResizableImageContainer({
                     <div className={`${handleStyle} -bottom-2 -right-2`} onMouseDown={(e) => startResize(e, 'bottom')} />
 
                     {/* Border guide */}
-                    <div className="absolute inset-0 border-2 border-emerald-500 opacity-0 group-hover/resize:opacity-30 pointer-events-none z-40 transition-opacity no-capture" />
+                    <div className="absolute inset-0 border-2 border-blue-500 opacity-0 group-hover/resize:opacity-30 pointer-events-none z-40 transition-opacity no-capture" />
                 </>
             )}
         </div >
@@ -408,46 +640,6 @@ function ResizableImageContainer({
 
 
 // ====== INTRO Modules ======
-function HookingBanner({ productData, images, variant, data, onUpdateData }: ModuleProps) {
-    const mainCopy = (data?.mainCopy as string) || '신선한 과일';
-    const subCopy = (data?.subCopy as string) || '산지직송 직배송';
-    const badgeText = (data?.badgeText as string) || '🔥 지금이 제철!';
-    const styles = getThemeStyles(variant);
-
-    const handleTextChange = (field: string) => (value: string) => {
-        onUpdateData && onUpdateData({ [field]: value });
-    };
-
-    return (
-        <div className={`${styles.bg} ${styles.container} p-10 sm:p-14 text-center relative overflow-hidden pb-[50px]`}>
-            <div className="relative z-10">
-                <EditableText
-                    value={badgeText}
-                    onChange={handleTextChange('badgeText')}
-                    className={`${styles.accent} font-bold text-lg mb-2 block`}
-                    tag="span"
-                />
-                <EditableText
-                    value={mainCopy}
-                    onChange={handleTextChange('mainCopy')}
-                    className={`${styles.text} ${styles.font || 'font-black'} text-4xl md:text-5xl leading-tight mb-4 whitespace-pre-line block`}
-                    tag="h1"
-                    multiline
-                />
-                <div className={`inline-block ${variant === 'B' ? 'bg-secondary text-primary' : 'bg-primary/10 text-primary'} px-4 py-1.5 rounded-full`}>
-                    <EditableText
-                        value={subCopy}
-                        onChange={handleTextChange('subCopy')}
-                        className="text-lg font-medium whitespace-pre-line"
-                        multiline
-                    />
-                </div>
-            </div>
-            {/* Subtle background element for visual interest if needed, following theme */}
-            {variant === 'C' && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16" />}
-        </div>
-    );
-}
 
 function HeroImage({ images, variant, data, onUpdateData }: ModuleProps) {
     const imageIndex = typeof data?.imageIndex === 'number' ? (data.imageIndex as number) : 0;
@@ -467,7 +659,7 @@ function HeroImage({ images, variant, data, onUpdateData }: ModuleProps) {
                     className="relative border-4 border-black overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
                 >
                     {mainImage ? <img src={imgSrc} className="w-full h-full object-cover grayscale contrast-125" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">이미지 드롭</div>}
-                    <div className="absolute top-4 left-4 bg-purple-600 text-white font-black text-xl px-2 py-1 rotate-[-5deg] border-2 border-black">NEW!</div>
+                    <div className="absolute top-4 left-4 bg-blue-600 text-white font-black text-xl px-2 py-1 rotate-[-5deg] border-2 border-black">NEW!</div>
                 </ResizableImageContainer>
             </DroppableImageZone>
         )
@@ -572,7 +764,7 @@ function ReviewSummary({ productData, images, variant, data, onUpdateData }: Mod
         return (
             <div className={`${styles.bg} ${styles.container} p-10 pb-[50px]`}>
                 <div className="max-w-md mx-auto space-y-4">
-                    <h3 className={`${styles.text} text-center mb-6 font-bold`}>리얼 후기</h3>
+                    <EditableText value={(data?.sectionTitle as string) || '리얼 후기'} onChange={(v) => onUpdateData && onUpdateData({ sectionTitle: v })} className={`${styles.text} text-center mb-6 font-bold block`} tag="h3" multiline />
                     {[0, 1, 2].map(i => {
                         const review = getReviewData(i);
                         const img = images[review.imgIdx];
@@ -602,7 +794,7 @@ function ReviewSummary({ productData, images, variant, data, onUpdateData }: Mod
     return (
         <div className={`${styles.bg} ${styles.container} p-8 pb-[50px]`}>
             <div className="text-center mb-8">
-                <h3 className={`${styles.text} text-xl font-bold`}>구매자가 증명하는 맛</h3>
+                <EditableText value={(data?.sectionTitle as string) || '구매자가 증명하는 맛'} onChange={(v) => onUpdateData && onUpdateData({ sectionTitle: v })} className={`${styles.text} text-xl font-bold block`} tag="h3" multiline />
             </div>
             <div className="grid grid-cols-3 gap-4 auto-rows-fr">
                 {[0, 1, 2].map(i => {
@@ -824,8 +1016,8 @@ function ComparisonTable({ productData, images, variant, data, onUpdateData }: M
     return (
         <div className={`${styles.bg} ${styles.container} p-10 pb-[50px]`}>
             <div className="text-center mb-10">
-                <p className={`${styles.accent} text-[13px] font-bold tracking-[0.2em] uppercase mb-2`}>품질 비교</p>
-                <h2 className={`${styles.text} text-3xl font-black mb-1`}>압도적인 품질 차이</h2>
+                <EditableText value={(data?.compareLabel as string) || '품질 비교'} onChange={handleUpdate('compareLabel')} className={`${styles.accent} text-[13px] font-bold tracking-[0.2em] uppercase mb-2 block`} tag="p" />
+                <EditableText value={(data?.compareTitle as string) || '압도적인 품질 차이'} onChange={handleUpdate('compareTitle')} className={`${styles.text} text-3xl font-black mb-1 block`} tag="h2" multiline />
                 <div className="w-12 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
             </div>
 
@@ -917,7 +1109,7 @@ function SizeGuide({ productData, images, variant, data, onUpdateData }: ModuleP
 
     return (
         <div className={`${styles.bg} ${styles.container} p-10 flex flex-col items-center text-center`}>
-            <h2 className={`text-xl font-bold ${styles.text} mb-8 uppercase tracking-widest`}>사이즈 안내</h2>
+            <EditableText value={(data?.guideTitle as string) || '사이즈 안내'} onChange={(v) => onUpdateData && onUpdateData({ guideTitle: v })} className={`text-xl font-bold ${styles.text} mb-8 uppercase tracking-widest block`} tag="h2" multiline />
             <DroppableImageZone onDrop={handleImageDrop} className="relative w-64 max-w-full">
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 1)}
@@ -933,12 +1125,145 @@ function SizeGuide({ productData, images, variant, data, onUpdateData }: ModuleP
                 className={`text-3xl font-black ${isSolid ? 'text-white' : styles.accent} mb-2`}
                 tag="p"
             />
-            <p className={`${styles.text} opacity-60 text-sm italic`}>실제 크기는 이미지와 다를 수 있습니다.</p>
+            <EditableText value={(data?.guideNote as string) || '실제 크기는 이미지와 다를 수 있습니다.'} onChange={(v) => onUpdateData && onUpdateData({ guideNote: v })} className={`${styles.text} opacity-60 text-sm italic block`} tag="p" />
         </div>
     );
 }
 
 // ... HarvestProcess, SweetnessCheck, TasteTip, EventHighlight, PackagingInfo, CautionNotice, CSInfo
+function HomeUseNotice({ images, variant, data, onUpdateData }: ModuleProps) {
+    const styles = getThemeStyles(variant);
+    const imageIndex = typeof data?.imageIndex === 'number' ? (data.imageIndex as number) : 0;
+    const noticeImage = images[imageIndex];
+    const imgSrc = noticeImage?.transformedUrl || noticeImage?.previewUrl;
+    const isSolid = variant === 'B';
+
+    const handleUpdateRatio = (r: number) => onUpdateData && onUpdateData({ aspectRatio: r });
+    const handleImageDrop = (idx: number) => onUpdateData && onUpdateData({ imageIndex: idx });
+    const handleTextChange = (field: string) => (value: string) => {
+        onUpdateData && onUpdateData({ [field]: value });
+    };
+
+    const title = (data?.title as string) || '가정용/실속형 상품 안내';
+    const subtitle = (data?.subtitle as string) || '모양은 조금 못나도 맛과 영양은 정품 그대로!';
+    const description = (data?.description as string) || '크기가 일정하지 않거나 약간의 흠집이 있을 수 있지만, 집에서 편하게 드시기 좋은 가성비 최고 등급입니다.';
+
+    return (
+        <div className={`${styles.bg} ${styles.container} p-10 sm:p-14 text-center pb-[50px]`}>
+            <div className="mb-8">
+                <span className="text-4xl mb-4 block">👨‍👩‍👧‍👦</span>
+                <EditableText
+                    value={title}
+                    onChange={handleTextChange('title')}
+                    className={`${isSolid ? 'text-white/80' : styles.accent} tracking-[0.1em] text-sm font-black mb-3 uppercase`}
+                    tag="p"
+                />
+                <EditableText
+                    value={subtitle}
+                    onChange={handleTextChange('subtitle')}
+                    className={`text-2xl sm:text-3xl font-black ${styles.text} mb-4 break-keep leading-snug`}
+                    tag="h3"
+                    multiline
+                />
+                <EditableText
+                    value={description}
+                    onChange={handleTextChange('description')}
+                    className={`text-base ${styles.text} opacity-80 break-keep max-w-lg mx-auto leading-relaxed`}
+                    tag="p"
+                    multiline
+                />
+            </div>
+
+            <DroppableImageZone onDrop={handleImageDrop} className="relative w-full max-w-2xl mx-auto">
+                <ResizableImageContainer
+                    aspectRatio={getDataAspectRatio(data, 16 / 9)}
+                    onUpdateAspectRatio={handleUpdateRatio}
+                    className={`w-full rounded-2xl overflow-hidden shadow-md border-4 ${isSolid ? 'border-white/20' : styles.border}`}
+                >
+                    {noticeImage ? (
+                        <img src={imgSrc} className="w-full h-full object-cover" alt="실속형 안내" />
+                    ) : (
+                        <div className={`w-full h-full flex flex-col items-center justify-center ${isSolid ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-400'} p-8 aspect-video`}>
+                            <span className="text-4xl mb-2">📸</span>
+                            <span className="text-sm font-bold mb-1">실제 상품 사진</span>
+                            <span className="text-xs opacity-80">이미지를 드래그하세요</span>
+                        </div>
+                    )}
+                </ResizableImageContainer>
+            </DroppableImageZone>
+            <p className={`${styles.text} mt-4 text-sm opacity-60 font-medium italic`}>실제 발송되는 상품의 예시 이미지입니다.</p>
+        </div>
+    );
+}
+
+function OptionList({ variant, data, onUpdateData }: ModuleProps) {
+    const styles = getThemeStyles(variant);
+    const optionCount = typeof data?.optionCount === 'number' ? (data.optionCount as number) : 3;
+    const isSolid = variant === 'B';
+
+    const handleTextChange = (field: string) => (value: string) => {
+        onUpdateData && onUpdateData({ [field]: value });
+    };
+
+    const updateOptionCount = (delta: number) => {
+        if (!onUpdateData) return;
+        const newCount = Math.max(1, Math.min(5, optionCount + delta));
+        onUpdateData({ optionCount: newCount });
+    };
+
+    return (
+        <div className={`${styles.bg} ${styles.container} p-8 sm:p-12 pb-[50px] relative group`}>
+            {/* Control Panel (Visible on Hover in Editor) */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 text-white px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                <span className="text-xs font-bold mr-1">옵션 수량</span>
+                <button type="button" onClick={() => updateOptionCount(-1)} className="w-5 h-5 flex items-center justify-center bg-white/40 hover:bg-white/60 rounded-full text-xs font-bold leading-none">-</button>
+                <span className="text-xs font-bold w-3 text-center">{optionCount}</span>
+                <button type="button" onClick={() => updateOptionCount(1)} className="w-5 h-5 flex items-center justify-center bg-white/40 hover:bg-white/60 rounded-full text-xs font-bold leading-none">+</button>
+            </div>
+
+            <div className="text-center mb-8">
+                <span className="text-4xl mb-3 block">📦</span>
+                <h3 className={`text-2xl font-black ${styles.text} uppercase tracking-widest`}>
+                    <EditableText value={(data?.title as string) || '옵션/구성 안내'} onChange={handleTextChange('title')} />
+                </h3>
+                <div className={`w-12 h-1 ${isSolid ? 'bg-secondary' : 'bg-primary'} mx-auto mt-4 rounded-full`}></div>
+            </div>
+
+            <div className="space-y-3 max-w-2xl mx-auto">
+                {Array.from({ length: optionCount }).map((_, index) => (
+                    <div key={index} className={`flex flex-col sm:flex-row items-center sm:items-stretch gap-2 sm:gap-6 p-6 sm:p-7 rounded-2xl border ${isSolid ? 'border-white/10 bg-white/5 shadow-inner' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-gray-50/50' : 'bg-white/50'} shadow-sm`}`}>
+                        <div className="flex-1 w-full text-center sm:text-left flex flex-col justify-center">
+                            <EditableText
+                                value={(data?.[`optionTitle${index + 1}`] as string) || `프리미엄 세트 ${index + 1}`}
+                                onChange={handleTextChange(`optionTitle${index + 1}`)}
+                                className={`font-black text-2xl sm:text-3xl ${styles.text} block mb-2 break-keep tracking-tight`}
+                                tag="h4"
+                            />
+                            <EditableText
+                                value={(data?.[`optionDesc${index + 1}`] as string) || '중과 1.5kg (7~9과) + 포장용기'}
+                                onChange={handleTextChange(`optionDesc${index + 1}`)}
+                                className={`${styles.text} opacity-80 text-sm sm:text-base font-medium break-keep`}
+                                tag="p"
+                            />
+                        </div>
+                        <div className="flex items-center justify-center sm:justify-end sm:w-32 mt-4 sm:mt-0 font-black text-xl sm:text-2xl border-t sm:border-t-0 border-gray-100/30 pt-4 sm:pt-0">
+                            <EditableText
+                                value={(data?.[`optionPrice${index + 1}`] as string) || '29,900원'}
+                                onChange={handleTextChange(`optionPrice${index + 1}`)}
+                                className={isSolid ? 'text-white' : 'text-primary drop-shadow-sm'}
+                                tag="span"
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {optionCount === 5 && (
+                <p className={`${styles.text} mt-6 text-center text-xs opacity-50 font-bold`}>최대 5개 옵션까지 설정 가능합니다.</p>
+            )}
+        </div>
+    );
+}
+
 function HarvestProcess({ images, variant, data, onUpdateData }: ModuleProps) {
     const styles = getThemeStyles(variant);
     const isSolid = variant === 'B';
@@ -1004,7 +1329,7 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
     return (
         <div className={`${styles.bg} ${styles.container} p-10 sm:p-14 text-center`}>
             <div className="mb-10">
-                <p className={`${isSolid ? 'text-white/60' : styles.accent} tracking-[0.2em] text-[10px] font-black mb-3 uppercase`}>당도 체크</p>
+                <EditableText value={(data?.brixLabel as string) || '당도 체크'} onChange={(v) => onUpdateData && onUpdateData({ brixLabel: v })} className={`${isSolid ? 'text-white/60' : styles.accent} tracking-[0.2em] text-[10px] font-black mb-3 uppercase block`} tag="p" multiline />
                 <div className={`flex justify-center items-baseline gap-1 mb-6 ${styles.text}`}>
                     <EditableText
                         value={(data?.sweetness as string) || '14'}
@@ -1012,7 +1337,7 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
                         className="text-7xl font-black"
                         tag="span"
                     />
-                    <span className="text-xl font-bold opacity-50">브릭스</span>
+                    <EditableText value={(data?.brixUnit as string) || '브릭스'} onChange={(v) => onUpdateData && onUpdateData({ brixUnit: v })} className="text-xl font-bold opacity-50 inline-block" tag="span" />
                 </div>
                 <div className={`w-full max-w-xs mx-auto h-2.5 rounded-full overflow-hidden ${styles.bg === 'bg-white' ? 'bg-gray-100' : 'bg-black/20'}`}>
                     <div className={`h-full ${isSolid ? 'bg-white' : 'bg-primary'} w-[85%] rounded-full shadow-[0_0_10px_rgba(255,255,255,0.3)]`}></div>
@@ -1031,14 +1356,14 @@ function SweetnessCheck({ productData, images, variant, data, onUpdateData }: Mo
                     ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 p-8 aspect-square">
                             <span className="text-4xl mb-2">📊</span>
-                            <span className="text-sm">당도 측정 사진</span>
+                            <EditableText value={(data?.imageCaption as string) || '당도 측정 사진'} onChange={(v) => onUpdateData && onUpdateData({ imageCaption: v })} className="text-sm block" tag="span" />
                             <span className="text-xs mt-1 opacity-60">이미지를 드래그하세요</span>
                         </div>
                     )}
                 </ResizableImageContainer>
             </DroppableImageZone>
 
-            <p className={`${styles.text} mt-8 text-sm opacity-60 font-medium italic`}>비파괴 당도 선별기로 측정한 고당도 과일만 보내드립니다.</p>
+            <EditableText value={(data?.brixNote as string) || '비파괴 당도 선별기로 측정한 고당도 과일만 보내드립니다.'} onChange={(v) => onUpdateData && onUpdateData({ brixNote: v })} className={`${styles.text} mt-8 text-sm opacity-60 font-medium italic block`} tag="p" />
         </div>
     );
 }
@@ -1072,7 +1397,7 @@ function TasteTip({ productData, variant, data, onUpdateData }: ModuleProps) {
             </div>
             <div className="space-y-3 max-w-2xl mx-auto">
                 {[0, 1, 2, 3].map(index => (
-                    <div key={index} className={`flex items-start gap-4 p-4 rounded-xl border ${isSolid ? 'border-white/10 bg-white/10' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-emerald-50/50' : 'bg-white/5'}`}`}>
+                    <div key={index} className={`flex items-start gap-4 p-4 rounded-xl border ${isSolid ? 'border-white/10 bg-white/10' : `${styles.border} ${styles.bg === 'bg-white' ? 'bg-blue-50/50' : 'bg-white/5'}`}`}>
                         <span className={`${isSolid ? 'text-white' : styles.accent} text-lg font-bold`}>✓</span>
                         <EditableText
                             value={getTipData(index)}
@@ -1107,6 +1432,7 @@ function EventHighlight({ productData, variant, data, onUpdateData }: ModuleProp
                     onChange={handleTextChange('eventTitle')}
                     className={`${styles.accent} font-black text-4xl md:text-5xl mb-4 tracking-tighter uppercase block`}
                     tag="h3"
+                    multiline
                 />
 
                 <EditableText
@@ -1123,11 +1449,12 @@ function EventHighlight({ productData, variant, data, onUpdateData }: ModuleProp
                             value={badgeText}
                             onChange={handleTextChange('badgeText')}
                             className="whitespace-pre-line"
+                            multiline
                         />
                     </div>
                 </div>
 
-                <p className={`${styles.text} mt-6 opacity-60 text-sm`}>본 이벤트는 조기 종료될 수 있습니다.</p>
+                <EditableText value={(data?.eventNote as string) || '본 이벤트는 조기 종료될 수 있습니다.'} onChange={handleTextChange('eventNote')} className={`${styles.text} mt-6 opacity-60 text-sm block`} tag="p" />
             </div>
         </div>
     );
@@ -1144,7 +1471,7 @@ function PackagingInfo({ images, variant, data, onUpdateData }: ModuleProps) {
 
     return (
         <div className={`${styles.bg} ${styles.container} p-8`}>
-            <h3 className={`text-xl font-bold ${styles.text} mb-4 text-center`}>Safe Delivery</h3>
+            <EditableText value={(data?.packagingTitle as string) || 'Safe Delivery'} onChange={(v) => onUpdateData && onUpdateData({ packagingTitle: v })} className={`text-xl font-bold ${styles.text} mb-4 text-center block`} tag="h3" multiline />
             <DroppableImageZone onDrop={handleImageDrop} className="relative w-full mb-4">
                 <ResizableImageContainer
                     aspectRatio={getDataAspectRatio(data, 16 / 9)}
@@ -1154,7 +1481,7 @@ function PackagingInfo({ images, variant, data, onUpdateData }: ModuleProps) {
                     {packagingImage ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 aspect-video">이미지 드롭</div>}
                 </ResizableImageContainer>
             </DroppableImageZone>
-            <p className={`${styles.text} text-center opacity-80`}>꼼꼼하게 포장하여 안전하게 배송해드립니다.</p>
+            <EditableText value={(data?.packagingDesc as string) || '꼼꼼하게 포장하여 안전하게 배송해드립니다.'} onChange={(v) => onUpdateData && onUpdateData({ packagingDesc: v })} className={`${styles.text} text-center opacity-80 block`} tag="p" />
         </div>
     )
 }

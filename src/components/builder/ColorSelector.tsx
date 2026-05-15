@@ -1,57 +1,127 @@
 'use client';
 
 import React from 'react';
-import { useBuilder } from '@/context/BuilderContext';
+import { useBuilderStore } from '@/store/useBuilderStore';
 
-// 6가지 컬러 팔레트
 export const COLOR_PALETTES = [
-    { value: 'apple', label: '🍎 사과', primary: '#D32F2F', secondary: '#FFEBEE', text: '#B71C1C' },
-    { value: 'strawberry', label: '🍓 딸기', primary: '#EC407A', secondary: '#FCE4EC', text: '#C2185B' },
-    { value: 'tangerine', label: '🍊 귤', primary: '#FB8C00', secondary: '#FFF3E0', text: '#EF6C00' },
-    { value: 'peach', label: '🍑 복숭아', primary: '#FF7043', secondary: '#FBE9E7', text: '#D84315' },
-    { value: 'sweetpotato', label: '🍠 고구마', primary: '#7B1FA2', secondary: '#F3E5F5', text: '#4A148C' },
-    { value: 'green', label: '🥬 초록', primary: '#2E7D32', secondary: '#E8F5E9', text: '#1B5E20' },
+    { value: 'apple', label: '🪄 꿀사과', primary: '#FF3B30', secondary: '#FFF0F0', text: '#8A0804' },
+    { value: 'strawberry', label: '🍓 설향딸기', primary: '#FF2D55', secondary: '#FFE8EC', text: '#9C0A26' },
+    { value: 'tangerine', label: '🍊 제주감귤', primary: '#FF9500', secondary: '#FFF5E5', text: '#A65500' },
+    { value: 'peach', label: '🍑 물복숭아', primary: '#FF7A8A', secondary: '#FFF0F2', text: '#A63344' },
+    { value: 'blueberry', label: '🫐 블루베리', primary: '#5E5CE6', secondary: '#EFEFFD', text: '#29288A' },
+    { value: 'shinemuscat', label: '🍇 샤인머스캣', primary: '#34C759', secondary: '#EAF8ED', text: '#166E28' },
 ];
 
-export type ColorPalette = typeof COLOR_PALETTES[number]['value'];
+export type ColorPalette = typeof COLOR_PALETTES[number]['value'] | 'custom';
 
 export function ColorSelector() {
-    const { state, dispatch } = useBuilder();
-    const currentPalette = (state as any).colorPalette || 'apple';
+    const currentPalette = useBuilderStore(state => state.colorPalette);
+    const customColors = useBuilderStore(state => state.customColors) || { primary: '#10b981', secondary: '#d1fae5', text: '#047857' };
+    const setColorPalette = useBuilderStore(state => state.setColorPalette);
+    const setCustomColors = useBuilderStore(state => state.setCustomColors);
 
-    const handleChange = (palette: string) => {
-        dispatch({ type: 'SET_COLOR_PALETTE', payload: palette });
+    const applyColorsToRoot = (primary: string, secondary: string, text: string) => {
+        document.documentElement.style.setProperty('--color-primary', primary);
+        document.documentElement.style.setProperty('--color-secondary', secondary);
+        document.documentElement.style.setProperty('--color-text', text);
+    };
 
-        // Apply CSS variables to :root
+    React.useEffect(() => {
+        if (currentPalette === 'custom') {
+            applyColorsToRoot(customColors.primary, customColors.secondary, customColors.text);
+        } else {
+            const selected = COLOR_PALETTES.find(p => p.value === currentPalette);
+            if (selected) {
+                applyColorsToRoot(selected.primary, selected.secondary, selected.text);
+            }
+        }
+    }, [currentPalette, customColors]);
+
+    const handlePresetChange = (palette: string) => {
+        setColorPalette(palette);
         const selected = COLOR_PALETTES.find(p => p.value === palette);
         if (selected) {
-            document.documentElement.style.setProperty('--color-primary', selected.primary);
-            document.documentElement.style.setProperty('--color-secondary', selected.secondary);
-            document.documentElement.style.setProperty('--color-text', selected.text);
+            applyColorsToRoot(selected.primary, selected.secondary, selected.text);
         }
     };
 
+    const handleCustomChange = (field: 'primary' | 'secondary' | 'text', value: string) => {
+        if (currentPalette !== 'custom') setColorPalette('custom');
+        const newColors = { ...customColors, [field]: value };
+        setCustomColors(newColors);
+        applyColorsToRoot(newColors.primary, newColors.secondary, newColors.text);
+    };
+
     return (
-        <div className="space-y-2 p-4 bg-gray-800/60 rounded-lg border border-gray-700">
-            <h4 className="text-sm font-semibold text-gray-300">🎨 컬러 팔레트</h4>
+        <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
                 {COLOR_PALETTES.map((palette) => (
                     <button
                         key={palette.value}
-                        onClick={() => handleChange(palette.value)}
+                        onClick={() => handlePresetChange(palette.value)}
                         className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${currentPalette === palette.value
-                                ? 'border-emerald-500 bg-emerald-500/20'
-                                : 'border-gray-600 hover:border-gray-500'
+                                ? 'border-blue-500 bg-blue-500/20'
+                                : 'border-gray-300 hover:border-gray-500'
                             }`}
                     >
                         <div
                             className="w-6 h-6 rounded-full shadow-sm"
                             style={{ backgroundColor: palette.primary }}
                         />
-                        <span className="text-[10px] text-gray-300">{palette.label}</span>
+                        <span className="text-[10px] text-gray-700">{palette.label}</span>
                     </button>
                 ))}
+                
+                {/* Custom Picker Option */}
+                <button
+                    onClick={() => {
+                        setColorPalette('custom');
+                        applyColorsToRoot(customColors.primary, customColors.secondary, customColors.text);
+                    }}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${currentPalette === 'custom'
+                            ? 'border-blue-500 bg-blue-500/20'
+                            : 'border-gray-300 hover:border-gray-500'
+                        }`}
+                >
+                    <div
+                        className="w-6 h-6 rounded-full shadow-sm bg-gradient-to-br from-red-500 via-green-500 to-blue-500"
+                    />
+                    <span className="text-[10px] text-gray-700">⚙️ 커스텀</span>
+                </button>
             </div>
+
+            {/* Custom RGB Controls */}
+            {currentPalette === 'custom' && (
+                <div className="flex gap-2 p-2 bg-slate-50 rounded-lg border border-blue-500/30">
+                    <div className="flex-1 flex flex-col items-center">
+                        <label className="text-[10px] text-gray-500 mb-1">프라이머리</label>
+                        <input 
+                            type="color" 
+                            className="w-full h-8 cursor-pointer rounded bg-transparent outline-none" 
+                            value={customColors.primary} 
+                            onChange={(e) => handleCustomChange('primary', e.target.value)} 
+                        />
+                    </div>
+                    <div className="flex-1 flex flex-col items-center">
+                        <label className="text-[10px] text-gray-500 mb-1">세컨더리</label>
+                        <input 
+                            type="color" 
+                            className="w-full h-8 cursor-pointer rounded bg-transparent outline-none" 
+                            value={customColors.secondary} 
+                            onChange={(e) => handleCustomChange('secondary', e.target.value)} 
+                        />
+                    </div>
+                    <div className="flex-1 flex flex-col items-center">
+                        <label className="text-[10px] text-gray-500 mb-1">텍스트</label>
+                        <input 
+                            type="color" 
+                            className="w-full h-8 cursor-pointer rounded bg-transparent outline-none" 
+                            value={customColors.text} 
+                            onChange={(e) => handleCustomChange('text', e.target.value)} 
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

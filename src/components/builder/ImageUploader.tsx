@@ -3,6 +3,7 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useBuilder } from '@/context/BuilderContext';
+import { MaskRegion } from '@/types';
 
 export function ImageUploader() {
     const { state, dispatch } = useBuilder();
@@ -27,15 +28,15 @@ export function ImageUploader() {
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-100">상품 이미지 업로드</h3>
-            <p className="text-sm text-gray-400">최대 30장까지 업로드 가능합니다 ({state.images.length}/30)</p>
+            <h3 className="text-lg font-semibold text-gray-900">상품 이미지 업로드</h3>
+            <p className="text-sm text-gray-500">최대 30장까지 업로드 가능합니다 ({state.images.length}/30)</p>
 
             <div
                 {...getRootProps()}
                 className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300
           ${isDragActive
-                        ? 'border-emerald-400 bg-emerald-500/10'
-                        : 'border-gray-600 hover:border-gray-500 bg-gray-800/50'
+                        ? 'border-blue-400 bg-blue-500/10'
+                        : 'border-gray-300 hover:border-gray-500 bg-white/50'
                     }
           ${state.images.length >= 30 ? 'opacity-50 cursor-not-allowed' : ''}
         `}
@@ -44,54 +45,63 @@ export function ImageUploader() {
                 <div className="space-y-2">
                     <div className="text-4xl">📷</div>
                     {isDragActive ? (
-                        <p className="text-emerald-400">이미지를 여기에 놓으세요</p>
+                        <p className="text-blue-400">이미지를 여기에 놓으세요</p>
                     ) : (
-                        <p className="text-gray-400">클릭하거나 이미지를 드래그하여 업로드</p>
+                        <p className="text-gray-500">클릭하거나 이미지를 드래그하여 업로드</p>
                     )}
                 </div>
             </div>
 
             {state.images.length > 0 && (
                 <div className="grid grid-cols-5 gap-3">
-                    {state.images.map((img, index) => (
-                        <div
-                            key={img.id}
-                            className="relative group aspect-square cursor-grab active:cursor-grabbing"
-                            draggable
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('imageIndex', index.toString());
-                                e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                        >
-                            <img
-                                src={img.transformedUrl || img.previewUrl}
-                                alt={`상품 이미지 ${index + 1}`}
-                                className="w-full h-full object-cover rounded-lg pointer-events-none"
-                            />
-                            {/* Image index number */}
-                            <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-bold">
-                                {index}
-                            </div>
-                            {img.isProcessing && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
-                                    <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full" />
-                                </div>
-                            )}
-                            <button
-                                onClick={() => removeImage(img.id)}
-                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                    {state.images.map((img, index) => {
+                        const maskCount = img.masks?.length ?? 0;
+                        return (
+                            <div
+                                key={img.id}
+                                className="relative group aspect-square cursor-grab active:cursor-grabbing"
+                                draggable
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData('imageIndex', index.toString());
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                }}
                             >
-                                ×
-                            </button>
-                            {img.transformedUrl && (
-                                <div className="absolute bottom-1 right-1 bg-emerald-500 text-white text-xs px-1.5 py-0.5 rounded">
-                                    AI
+                                <img
+                                    src={img.transformedUrl || img.previewUrl}
+                                    alt={`상품 이미지 ${index + 1}`}
+                                    className="w-full h-full object-cover rounded-lg pointer-events-none"
+                                />
+
+                                {/* Image index number */}
+                                <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded font-bold">
+                                    {index}
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {img.isProcessing && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
+                                        <div className="animate-spin w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full" />
+                                    </div>
+                                )}
+
+                                {/* Remove button */}
+                                <button
+                                    onClick={() => removeImage(img.id)}
+                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-gray-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-sm z-10"
+                                >
+                                    ×
+                                </button>
+
+                                {img.transformedUrl && (
+                                    <div className="absolute bottom-1 right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">
+                                        AI
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
+
         </div>
     );
 }

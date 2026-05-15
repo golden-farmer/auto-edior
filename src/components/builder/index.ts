@@ -8,4 +8,7 @@ export { FontSelector } from './FontSelector';
 export { ColorSelector } from './ColorSelector';
 export { AutoFitText, TextOverflowWarning } from './AutoFitText';
 export { TextScaleToggle } from './TextScaleToggle';
-
+export { MaskEditorModal } from './MaskEditorModal';
+export { MaskPropertyPanel } from './MaskPropertyPanel';
+export { ToneAndMoodPanel } from './ToneAndMoodPanel';
+export { TextStylePanel } from './TextStylePanel';

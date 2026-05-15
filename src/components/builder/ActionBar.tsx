@@ -1,16 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useBuilder } from '@/context/BuilderContext';
+import { useBuilderStore } from '@/store/useBuilderStore';
+import { serializeDetailProjectSnapshot } from '@/lib/detail-projects';
 import { stitchModuleImages, downloadDataUrl, downloadBlob } from '@/lib/image-processing';
 import { generateThumbnail } from '@/lib/thumbnail';
 import { COLOR_PALETTES } from './ColorSelector';
 import { TEXT_SCALE_VALUES } from '@/types';
-// import JSZip from 'jszip'; // Removed to avoid potential chunk load issues as requested
+import { toast } from 'sonner';
+import { useQuotaStore } from '@/store/useQuotaStore';
+import { useApiKeyStore } from '@/store/useApiKeyStore';
 
 export function ActionBar() {
+    const router = useRouter();
+    const { setQuotaExceeded } = useQuotaStore();
+    const { setApiKeyMissing, setApiKeyInvalid } = useApiKeyStore();
     const { state, dispatch } = useBuilder();
+    const { overlayNodes, setCurrentProjectMeta } = useBuilderStore();
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [isSavingProject, setIsSavingProject] = useState(false);
 
     const handleGenerateAI = async () => {
         const missingFields = [];
@@ -53,6 +63,10 @@ export function ActionBar() {
                             body: JSON.stringify({ action: 'analyze-image', imageBase64: base64 }),
                         });
                         const analysisData = await analysisRes.json();
+                        if (analysisRes.status === 429) throw new Error("QUOTA_EXCEEDED");
+                        if (analysisRes.status === 403) throw new Error("NO_API_KEY");
+                        if (analysisRes.status === 401) throw new Error("INVALID_API_KEY");
+                        if (analysisRes.status === 503) throw new Error("SERVER_OVERLOADED");
                         imageAnalysis = analysisData.result || '';
                     }
                     console.log('Image analysis complete.');
@@ -73,11 +87,17 @@ export function ActionBar() {
                     imageAnalysis,
                 }),
             });
-            if (!hookingRes.ok) throw new Error(`Hooking copy request failed: ${hookingRes.status}`);
+            if (!hookingRes.ok) {
+                if (hookingRes.status === 429) throw new Error("QUOTA_EXCEEDED");
+                if (hookingRes.status === 403) throw new Error("NO_API_KEY");
+                if (hookingRes.status === 401) throw new Error("INVALID_API_KEY");
+                if (hookingRes.status === 503) throw new Error("SERVER_OVERLOADED");
+                throw new Error(`Hooking copy request failed: ${hookingRes.status}`);
+            }
             const hookingData = await hookingRes.json();
 
             // Update HookingBanner module with generated copy
-            const hookingModule = state.modules.find(m => m.type === 'hooking-banner');
+            const hookingModule = state.modules.find(m => (m.type as string) === 'hooking-banner');
             if (hookingModule) {
                 dispatch({
                     type: 'UPDATE_MODULE_DATA',
@@ -97,7 +117,13 @@ export function ActionBar() {
                     imageAnalysis,
                 }),
             });
-            if (!sellingRes.ok) throw new Error(`Selling points request failed: ${sellingRes.status}`);
+            if (!sellingRes.ok) {
+                if (sellingRes.status === 429) throw new Error("QUOTA_EXCEEDED");
+                if (sellingRes.status === 403) throw new Error("NO_API_KEY");
+                if (sellingRes.status === 401) throw new Error("INVALID_API_KEY");
+                if (sellingRes.status === 503) throw new Error("SERVER_OVERLOADED");
+                throw new Error(`Selling points request failed: ${sellingRes.status}`);
+            }
             const sellingData = await sellingRes.json();
 
             // Parse selling points and update BenefitPoint modules
@@ -137,7 +163,13 @@ export function ActionBar() {
                     productName: state.productData.productName,
                 }),
             });
-            if (!storageRes.ok) throw new Error(`Storage tips request failed: ${storageRes.status}`);
+            if (!storageRes.ok) {
+                if (storageRes.status === 429) throw new Error("QUOTA_EXCEEDED");
+                if (storageRes.status === 403) throw new Error("NO_API_KEY");
+                if (storageRes.status === 401) throw new Error("INVALID_API_KEY");
+                if (storageRes.status === 503) throw new Error("SERVER_OVERLOADED");
+                throw new Error(`Storage tips request failed: ${storageRes.status}`);
+            }
             const storageData = await storageRes.json();
 
             // Update TasteTip or CautionNotice module with storage tips
@@ -166,7 +198,13 @@ export function ActionBar() {
                     description: state.productData.productDescription || '',
                 }),
             });
-            if (!reviewRes.ok) throw new Error(`Review summary request failed: ${reviewRes.status}`);
+            if (!reviewRes.ok) {
+                if (reviewRes.status === 429) throw new Error("QUOTA_EXCEEDED");
+                if (reviewRes.status === 403) throw new Error("NO_API_KEY");
+                if (reviewRes.status === 401) throw new Error("INVALID_API_KEY");
+                if (reviewRes.status === 503) throw new Error("SERVER_OVERLOADED");
+                throw new Error(`Review summary request failed: ${reviewRes.status}`);
+            }
             const reviewData = await reviewRes.json();
 
             const reviewText = reviewData.result || '';
@@ -206,6 +244,10 @@ export function ActionBar() {
                         payload: { id: summaryModule.id, data: parsedData }
                     });
                 }
+            } else if (summaryRes.status === 429) {
+                throw new Error("QUOTA_EXCEEDED");
+            } else if (summaryRes.status === 403) {
+                throw new Error("NO_API_KEY");
             }
 
             // 7. 비교 테이블 생성
@@ -229,14 +271,28 @@ export function ActionBar() {
                         type: 'UPDATE_MODULE_DATA',
                         payload: { id: compModule.id, data: parsedData }
                     });
+                } else if (compRes.status === 429) {
+                    throw new Error("QUOTA_EXCEEDED");
+                } else if (compRes.status === 403) {
+                    throw new Error("NO_API_KEY");
                 }
             }
 
             dispatch({ type: 'SET_PROGRESS', payload: { progress: 100, message: 'AI 생성 완료!' } });
             console.log('AI generation complete.');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Detailed AI generation error:', error);
-            alert('AI 생성 중 오류가 발생했습니다. 브라우저 콘솔(F12)을 확인해주세요.');
+            if (error.message === "QUOTA_EXCEEDED") {
+                setQuotaExceeded(true);
+            } else if (error.message === "NO_API_KEY") {
+                setApiKeyMissing(true);
+            } else if (error.message === "INVALID_API_KEY") {
+                setApiKeyInvalid(true);
+            } else if (error.message === "SERVER_OVERLOADED") {
+                toast.error('Gemini AI 서버가 현재 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+            } else {
+                toast.error('AI 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            }
         } finally {
             setIsGeneratingAI(false);
         }
@@ -375,7 +431,8 @@ export function ActionBar() {
                 textScale: TEXT_SCALE_VALUES[state.textScale],
                 primaryColor: palette.primary,
                 secondaryColor: palette.secondary,
-                textColor: palette.text
+                textColor: palette.text,
+                overlayNodes: overlayNodes
             };
 
             const stitchResult = await stitchModuleImages(moduleElements, (current, total) => {
@@ -452,7 +509,8 @@ export function ActionBar() {
                 textScale: TEXT_SCALE_VALUES[state.textScale],
                 primaryColor: palette.primary,
                 secondaryColor: palette.secondary,
-                textColor: palette.text
+                textColor: palette.text,
+                overlayNodes: overlayNodes
             };
 
             const result = await stitchModuleImages(moduleElements, (current, total) => {
@@ -481,29 +539,145 @@ export function ActionBar() {
         }
     };
 
+    const handleSaveProject = async () => {
+        const defaultTitle = state.currentProjectTitle
+            || state.productData.productName?.trim()
+            || `상세페이지 ${new Date().toLocaleString('ko-KR')}`;
+        const requestedTitle = window.prompt('저장본 이름을 입력해주세요.', defaultTitle);
+
+        if (!requestedTitle) {
+            return;
+        }
+
+        setIsSavingProject(true);
+
+        try {
+            const snapshot = await serializeDetailProjectSnapshot(state);
+            const response = await fetch(
+                state.currentProjectId ? `/api/detail-projects/${state.currentProjectId}` : '/api/detail-projects',
+                {
+                    method: state.currentProjectId ? 'PATCH' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: requestedTitle,
+                        productName: state.productData.productName,
+                        snapshot,
+                    }),
+                },
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || 'Failed to save detail project.');
+            }
+
+            const data = await response.json();
+
+            setCurrentProjectMeta({
+                id: data.project.id,
+                title: data.project.title,
+            });
+
+            if (!state.currentProjectId) {
+                router.replace(`/detail-editor?projectId=${data.project.id}`);
+            }
+
+            alert(`"${data.project.title}" 저장이 완료되었습니다.`);
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : '임시저장에 실패했습니다.');
+        } finally {
+            setIsSavingProject(false);
+        }
+    };
+
+    const handleOverwriteProject = async () => {
+        if (!state.currentProjectId) {
+            alert('현재 저장된 캔버스가 없습니다. 먼저 임시 저장을 해주세요.');
+            return;
+        }
+
+        setIsSavingProject(true);
+
+        try {
+            const snapshot = await serializeDetailProjectSnapshot(state);
+            const response = await fetch(`/api/detail-projects/${state.currentProjectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: state.currentProjectTitle || state.productData.productName || '상세페이지',
+                    productName: state.productData.productName,
+                    snapshot,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || 'Failed to save detail project.');
+            }
+
+            const data = await response.json();
+
+            setCurrentProjectMeta({
+                id: data.project.id,
+                title: data.project.title,
+            });
+
+            alert(`"${data.project.title}" 저장이 완료되었습니다.`);
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : '저장에 실패했습니다.');
+        } finally {
+            setIsSavingProject(false);
+        }
+    };
+
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur border-t border-gray-700 p-4 z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 z-50">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
                 {/* Progress indicator */}
                 {state.progress > 0 && state.progress < 100 && (
                     <div className="flex-1 max-w-md">
                         <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="flex-1 h-2 bg-white border text-gray-700 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
+                                    className="h-full bg-gradient-to-r from-blue-500 to-blue-500 transition-all duration-300"
                                     style={{ width: `${state.progress}%` }}
                                 />
                             </div>
-                            <span className="text-sm text-gray-400 whitespace-nowrap">{state.progressMessage}</span>
+                            <span className="text-sm text-gray-500 whitespace-nowrap">{state.progressMessage}</span>
                         </div>
                     </div>
                 )}
 
                 <div className="flex items-center gap-3 ml-auto">
                     <button
+                        onClick={() => router.push('/detail-projects')}
+                        className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 font-medium transition-colors hover:bg-gray-50"
+                    >
+                        저장함
+                    </button>
+
+                    <button
+                        onClick={handleOverwriteProject}
+                        disabled={state.isGenerating || isSavingProject}
+                        className="px-4 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                        저장
+                    </button>
+
+                    <button
+                        onClick={handleSaveProject}
+                        disabled={state.isGenerating || isSavingProject}
+                        className="px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 font-semibold transition-colors hover:bg-blue-100 disabled:opacity-50"
+                    >
+                        {isSavingProject ? '저장 중...' : '임시 저장'}
+                    </button>
+                    {/* 건들지말것 */}
+                    {/* <button
                         onClick={handleGenerateAI}
                         disabled={isGeneratingAI || state.isGenerating}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                     >
                         {isGeneratingAI ? (
                             <span className="animate-spin">⏳</span>
@@ -511,12 +685,12 @@ export function ActionBar() {
                             <span>✨</span>
                         )}
                         AI 텍스트
-                    </button>
+                    </button> */}
 
                     <button
                         onClick={handleDownloadAll}
                         disabled={state.isGenerating}
-                        className="px-8 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 text-white rounded-lg font-bold transition-all shadow-lg shadow-emerald-500/25 flex items-center gap-2"
+                        className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-600 hover:to-blue-600 disabled:opacity-50 text-white rounded-lg font-bold transition-all shadow-lg shadow-blue-500/25 flex items-center gap-2"
                     >
                         📥 다운로드 (전체)
                     </button>

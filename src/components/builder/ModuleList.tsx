@@ -20,17 +20,15 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useBuilder } from '@/context/BuilderContext';
 import { ModuleConfig, ImageUpload, TextScale } from '@/types';
-import { FontSelector } from './FontSelector';
-import { ColorSelector } from './ColorSelector';
-import { TextScaleToggle } from './TextScaleToggle';
+import { ThemeSelector } from './ThemeSelector';
 
 const CATEGORY_COLORS = {
     intro: 'bg-blue-500/20 border-blue-500/50 text-blue-300',
-    trust: 'bg-purple-500/20 border-purple-500/50 text-purple-300',
-    benefits: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300',
+    trust: 'bg-blue-500/20 border-blue-500/50 text-blue-300',
+    benefits: 'bg-blue-500/20 border-blue-500/50 text-blue-300',
     detail: 'bg-orange-500/20 border-orange-500/50 text-orange-300',
     service: 'bg-pink-500/20 border-pink-500/50 text-pink-300',
-    closing: 'bg-gray-500/20 border-gray-500/50 text-gray-300',
+    closing: 'bg-gray-500/20 border-gray-500/50 text-gray-700',
 };
 
 export function ModuleList() {
@@ -79,22 +77,12 @@ export function ModuleList() {
 
     return (
         <div className="space-y-4">
-            <FontSelector />
-            <ColorSelector />
 
-            <div className="flex justify-between items-center px-1">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">상세 구성 모듈</h3>
-                <select
-                    defaultValue="A"
-                    onChange={(e) => updateAllVariants(e.target.value)}
-                    className="bg-gray-800 text-gray-300 text-[10px] px-2 py-1 rounded border border-gray-700 outline-none hover:border-emerald-500 transition-colors uppercase font-bold"
-                >
-                    <option value="A">Style A (Default)</option>
-                    <option value="B">Style B</option>
-                    <option value="C">Style C</option>
-                    <option value="D">Style D</option>
-                    <option value="E">Style E</option>
-                </select>
+
+            <ThemeSelector />
+
+            <div className="flex justify-between items-center px-1 mb-2">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">상세 구성 모듈</h3>
             </div>
 
             <DndContext id="dnd-module-list" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -149,7 +137,7 @@ function SortableModuleItem({
             ref={setNodeRef}
             style={style}
             className={`rounded border transition-all duration-200 overflow-hidden
-        ${module.isActive ? categoryColor : 'bg-gray-900 border-gray-800 text-gray-600'}
+        ${module.isActive ? categoryColor : 'bg-slate-50 border-gray-800 text-gray-600'}
         ${isDragging ? 'opacity-50 scale-105 shadow-xl' : 'opacity-100'}
       `}
         >
@@ -157,7 +145,7 @@ function SortableModuleItem({
                 <button
                     {...attributes}
                     {...listeners}
-                    className="cursor-grab active:cursor-grabbing p-1 text-gray-500 hover:text-gray-300"
+                    className="cursor-grab active:cursor-grabbing p-1 text-gray-500 hover:text-gray-700"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
@@ -168,13 +156,13 @@ function SortableModuleItem({
                     onClick={onToggle}
                     className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-all
                     ${module.isActive
-                            ? 'bg-emerald-500 border-emerald-500'
-                            : 'border-gray-700 hover:border-gray-600'
+                            ? 'bg-blue-500 border-blue-500'
+                            : 'border-gray-200 hover:border-gray-300'
                         }
                     `}
                 >
                     {module.isActive && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-2.5 h-2.5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
                     )}
@@ -189,15 +177,15 @@ function SortableModuleItem({
                         <button
                             onClick={(e) => { e.stopPropagation(); onUpdateData({ layoutMode: 'horizontal' }); }}
                             className={`px-1.5 py-0.5 text-[9px] font-bold rounded-sm transition-all ${(module.data.layoutMode as string) !== 'vertical'
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-300'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >가로</button>
                         <button
                             onClick={(e) => { e.stopPropagation(); onUpdateData({ layoutMode: 'vertical' }); }}
                             className={`px-1.5 py-0.5 text-[9px] font-bold rounded-sm transition-all ${(module.data.layoutMode as string) === 'vertical'
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'text-gray-500 hover:text-gray-300'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >세로</button>
                     </div>
@@ -209,7 +197,7 @@ function SortableModuleItem({
                             value={(module.data.rowCount as number) || 3}
                             onChange={(e) => { e.stopPropagation(); onUpdateData({ rowCount: parseInt(e.target.value) }); }}
                             onPointerDown={(e) => e.stopPropagation()}
-                            className="bg-black/20 text-emerald-400 text-[10px] font-bold px-1 py-0.5 rounded border border-white/5 outline-none"
+                            className="bg-black/20 text-blue-400 text-[10px] font-bold px-1 py-0.5 rounded border border-white/5 outline-none"
                         >
                             {[2, 3, 4, 5].map(v => <option key={v} value={v}>{v}줄</option>)}
                         </select>

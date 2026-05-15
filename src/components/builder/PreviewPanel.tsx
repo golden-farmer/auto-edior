@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useBuilder } from '@/context/BuilderContext';
 import { ModuleRenderer } from '@/components/modules';
 import { COLOR_PALETTES } from './ColorSelector';
+import { TextStyleFloatingToolbar } from './TextStyleFloatingToolbar';
 import { TEXT_SCALE_VALUES } from '@/types';
 import {
     DndContext,
@@ -22,11 +23,16 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { v4 as uuidv4 } from 'uuid';
 
 export function PreviewPanel() {
     const { state, dispatch } = useBuilder();
+    
     const previewRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [zoom, setZoom] = useState(1.0);
+    const [canvasHeight, setCanvasHeight] = useState(0);
+    
     const ZOOM_STEP = 0.1;
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 2.0;
@@ -45,6 +51,19 @@ export function PreviewPanel() {
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    useEffect(() => {
+        if (!previewRef.current) return;
+        const observer = new ResizeObserver((entries) => {
+            for (let entry of entries) {
+                setCanvasHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(previewRef.current);
+        return () => observer.disconnect();
+    }, [activeModules]); // Re-measure if modules change
+
+
 
     const handleWheel = (e: React.WheelEvent) => {
         if (e.ctrlKey || e.metaKey) {
@@ -87,14 +106,18 @@ export function PreviewPanel() {
 
     return (
         <div className="h-full flex flex-col relative group/preview-area" onWheel={handleWheel}>
-            <div className="flex-1 overflow-auto p-8 flex flex-col items-center bg-gray-950/80 custom-scrollbar">
+            <div
+                id="preview-stage"
+                className="flex-1 overflow-auto p-8 flex flex-col items-center bg-slate-50 custom-scrollbar relative"
+            >
                 <div
                     ref={previewRef}
-                    className="bg-white shadow-2xl origin-top transition-transform duration-200 ease-out mb-20"
+                    className="bg-white shadow-2xl origin-top transition-transform duration-200 ease-out mb-20 relative"
                     style={{
                         width: 430,
                         maxWidth: '100%',
                         transform: `scale(${zoom})`,
+                        pointerEvents: 'auto'
                     }}
                     id="preview-container"
                 >
@@ -104,9 +127,10 @@ export function PreviewPanel() {
                             --font-title: '${state.titleFont}', sans-serif;
                             --font-body: '${state.bodyFont}', sans-serif;
                             --text-scale: ${TEXT_SCALE_VALUES[state.textScale]};
-                            --color-primary: ${COLOR_PALETTES.find(p => p.value === state.colorPalette)?.primary || '#2E7D32'};
-                            --color-secondary: ${COLOR_PALETTES.find(p => p.value === state.colorPalette)?.secondary || '#E8F5E9'};
-                            --color-text: ${COLOR_PALETTES.find(p => p.value === state.colorPalette)?.text || '#1B5E20'};
+                            --color-primary: ${state.colorPalette === 'custom' && state.customColors ? state.customColors.primary : (COLOR_PALETTES.find(p => p.value === state.colorPalette)?.primary || '#2E7D32')};
+                            --color-secondary: ${state.colorPalette === 'custom' && state.customColors ? state.customColors.secondary : (COLOR_PALETTES.find(p => p.value === state.colorPalette)?.secondary || '#E8F5E9')};
+                            --color-text: ${state.colorPalette === 'custom' && state.customColors ? state.customColors.text : (COLOR_PALETTES.find(p => p.value === state.colorPalette)?.text || '#1B5E20')};
+                            --color-muted: color-mix(in srgb, var(--color-text) 55%, white);
                         }
                         #preview-container h1, #preview-container h2, #preview-container h3, 
                         #preview-container h4, #preview-container h5, #preview-container h6 {
@@ -117,12 +141,25 @@ export function PreviewPanel() {
                             font-family: var(--font-body);
                         }
                         #preview-container .bg-primary { background-color: var(--color-primary) !important; }
+                        #preview-container .bg-primary\\/10 { background-color: color-mix(in srgb, var(--color-primary) 10%, transparent) !important; }
                         #preview-container .bg-secondary { background-color: var(--color-secondary) !important; }
                         #preview-container .text-primary { color: var(--color-primary) !important; }
+                        #preview-container .text-primary\\/70 { color: color-mix(in srgb, var(--color-primary) 70%, transparent) !important; }
+                        #preview-container .text-primary\\/80 { color: color-mix(in srgb, var(--color-primary) 80%, transparent) !important; }
+                        #preview-container .text-primary\\/90 { color: color-mix(in srgb, var(--color-primary) 90%, transparent) !important; }
                         #preview-container .text-secondary { color: var(--color-secondary) !important; }
+                        #preview-container .text-secondary\\/30 { color: color-mix(in srgb, var(--color-secondary) 30%, transparent) !important; }
+                        #preview-container .text-secondary\\/90 { color: color-mix(in srgb, var(--color-secondary) 90%, transparent) !important; }
                         #preview-container .text-main { color: var(--color-text) !important; }
+                        #preview-container .text-main\\/60 { color: color-mix(in srgb, var(--color-text) 60%, transparent) !important; }
+                        #preview-container .text-main\\/70 { color: color-mix(in srgb, var(--color-text) 70%, transparent) !important; }
+                        #preview-container .text-main\\/80 { color: color-mix(in srgb, var(--color-text) 80%, transparent) !important; }
+                        #preview-container .text-main\\/90 { color: color-mix(in srgb, var(--color-text) 90%, transparent) !important; }
                         #preview-container .border-primary { border-color: var(--color-primary) !important; }
+                        #preview-container .border-primary\\/30 { border-color: color-mix(in srgb, var(--color-primary) 30%, transparent) !important; }
+                        #preview-container .border-primary\\/40 { border-color: color-mix(in srgb, var(--color-primary) 40%, transparent) !important; }
                         #preview-container .border-secondary { border-color: var(--color-secondary) !important; }
+                        #preview-container .border-secondary\\/30 { border-color: color-mix(in srgb, var(--color-secondary) 30%, transparent) !important; }
                         #preview-container h1 { font-size: calc(2rem * var(--text-scale)) !important; }
                         #preview-container h2 { font-size: calc(1.5rem * var(--text-scale)) !important; }
                         #preview-container h3 { font-size: calc(1.25rem * var(--text-scale)) !important; }
@@ -138,6 +175,24 @@ export function PreviewPanel() {
                         #preview-container .text-2xl { font-size: calc(1.5rem * var(--text-scale)) !important; }
                         #preview-container .text-3xl { font-size: calc(1.875rem * var(--text-scale)) !important; }
                         #preview-container .text-4xl { font-size: calc(2.25rem * var(--text-scale)) !important; }
+                        #preview-container [data-editable-text="true"].editable-text-custom-color {
+                            color: var(--editable-custom-color) !important;
+                        }
+                        #preview-container [data-editable-text="true"].editable-text-custom-size {
+                            font-size: var(--editable-custom-font-size) !important;
+                        }
+                        #preview-container [data-editable-text="true"].editable-text-custom-weight {
+                            font-weight: var(--editable-custom-font-weight) !important;
+                        }
+                        #preview-container [data-editable-text="true"].editable-text-custom-align {
+                            text-align: var(--editable-custom-text-align) !important;
+                        }
+                        #preview-container [data-editable-text="true"].editable-text-custom-letter-spacing {
+                            letter-spacing: var(--editable-custom-letter-spacing) !important;
+                        }
+                        #preview-container [data-editable-text="true"].editable-text-custom-line-height {
+                            line-height: var(--editable-custom-line-height) !important;
+                        }
                     `}</style>
                     {activeModules.length > 0 ? (
                         <DndContext id="dnd-preview-panel" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -154,20 +209,21 @@ export function PreviewPanel() {
                             </SortableContext>
                         </DndContext>
                     ) : (
-                        <div className="p-12 text-center text-gray-400">
+                        <div className="p-12 text-center text-gray-500 relative z-10">
                             <div className="text-4xl mb-4">📄</div>
                             <p>활성화된 모듈이 없습니다.</p>
                             <p className="text-sm mt-2">좌측 패널에서 모듈을 활성화해주세요.</p>
                         </div>
                     )}
                 </div>
+                <TextStyleFloatingToolbar />
             </div>
 
             {/* Floating Zoom Control */}
-            <div className="absolute bottom-24 right-8 z-[60] flex flex-col items-center gap-4 bg-gray-800/90 backdrop-blur-md p-4 rounded-full border border-gray-700 shadow-2xl opacity-0 hover:opacity-100 group-hover/preview-area:opacity-100 transition-opacity">
+            <div className="absolute bottom-24 right-8 z-[60] flex flex-col items-center gap-4 bg-white/90 backdrop-blur-md p-4 rounded-full border border-gray-200 shadow-2xl opacity-0 hover:opacity-100 group-hover/preview-area:opacity-100 transition-opacity">
                 <button
                     onClick={() => setZoom(prev => Math.min(MAX_ZOOM, prev + ZOOM_STEP))}
-                    className="w-8 h-8 flex items-center justify-center text-white bg-gray-700 hover:bg-emerald-600 rounded-full transition-colors font-bold"
+                    className="w-8 h-8 flex items-center justify-center text-gray-700 bg-white hover:text-white border text-gray-700 hover:bg-blue-600 rounded-full transition-colors font-bold"
                 >
                     +
                 </button>
@@ -179,7 +235,7 @@ export function PreviewPanel() {
                         step={0.01}
                         value={zoom}
                         onChange={(e) => setZoom(parseFloat(e.target.value))}
-                        className="appearance-none bg-gray-600 h-1 rounded-lg outline-none cursor-pointer w-40 -rotate-90 origin-center absolute top-1/2 -translate-y-1/2"
+                        className="appearance-none bg-gray-200 h-1 rounded-lg outline-none cursor-pointer w-40 -rotate-90 origin-center absolute top-1/2 -translate-y-1/2"
                         style={{
                             accentColor: '#10b981'
                         }}
@@ -187,16 +243,16 @@ export function PreviewPanel() {
                 </div>
                 <button
                     onClick={() => setZoom(prev => Math.max(MIN_ZOOM, prev - ZOOM_STEP))}
-                    className="w-8 h-8 flex items-center justify-center text-white bg-gray-700 hover:bg-emerald-600 rounded-full transition-colors font-bold"
+                    className="w-8 h-8 flex items-center justify-center text-gray-700 bg-white hover:text-white border text-gray-700 hover:bg-blue-600 rounded-full transition-colors font-bold"
                 >
                     -
                 </button>
-                <div className="text-[10px] font-bold text-emerald-400 mt-1">
+                <div className="text-[10px] font-bold text-blue-400 mt-1">
                     {Math.round(zoom * 100)}%
                 </div>
                 <button
                     onClick={() => setZoom(1.0)}
-                    className="text-[9px] text-gray-400 hover:text-white uppercase font-bold mt-1"
+                    className="text-[9px] text-gray-500 hover:text-gray-900 uppercase font-bold mt-1"
                 >
                     Reset
                 </button>
@@ -246,13 +302,13 @@ function SortablePreviewItem({
         <div
             ref={setNodeRef}
             style={style}
-            className={`module-item relative group/preview ${isDragging ? 'opacity-80 shadow-2xl scale-[1.02] z-50' : 'hover:ring-2 hover:ring-emerald-500/50'} !touch-action-auto`}
+            className={`module-item relative group/preview ${isDragging ? 'opacity-80 shadow-2xl scale-[1.02] z-50' : 'hover:ring-2 hover:ring-blue-500/50'} !touch-action-auto`}
             data-module-id={module.id}
         >
             <div
                 {...listeners}
                 {...attributes}
-                className="no-capture absolute top-2 right-2 p-2 bg-black/50 hover:bg-emerald-600 text-white rounded cursor-grab active:cursor-grabbing opacity-0 group-hover/preview:opacity-100 transition-opacity z-50 backdrop-blur-sm"
+                className="no-capture absolute top-2 right-2 p-2 bg-black/50 hover:bg-blue-600 text-white rounded cursor-grab active:cursor-grabbing opacity-0 group-hover/preview:opacity-100 transition-opacity z-50 backdrop-blur-sm"
                 title="이동하려면 드래그하세요"
             >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

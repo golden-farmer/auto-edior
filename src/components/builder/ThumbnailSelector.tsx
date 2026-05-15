@@ -13,7 +13,7 @@ export function ThumbnailSelector() {
 
     if (images.length === 0) {
         return (
-            <div className="text-center text-gray-500 py-8 bg-gray-900/20 rounded-xl border border-dashed border-gray-700">
+            <div className="text-center text-gray-500 py-8 bg-slate-50/20 rounded-xl border border-dashed border-gray-200">
                 <p className="text-sm">이미지를 먼저 업로드해주세요</p>
             </div>
         );
@@ -23,7 +23,7 @@ export function ThumbnailSelector() {
         <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
                 <div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">썸네일 사진 선택</h4>
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">썸네일 사진 선택</h4>
                     <p className="text-[10px] text-gray-500">{selectedThumbnailIds.length}/10 선택됨</p>
                 </div>
             </div>
@@ -39,8 +39,8 @@ export function ThumbnailSelector() {
                             key={image.id}
                             onClick={() => toggleThumbnail(image.id)}
                             className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${isSelected
-                                ? 'border-emerald-500 ring-2 ring-emerald-500/50 scale-95'
-                                : 'border-transparent hover:border-gray-600 hover:scale-105'
+                                ? 'border-blue-500 ring-2 ring-blue-500/50 scale-95'
+                                : 'border-transparent hover:border-gray-300 hover:scale-105'
                                 }`}
                         >
                             <img
@@ -51,8 +51,8 @@ export function ThumbnailSelector() {
                             />
 
                             {isSelected && (
-                                <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center">
-                                    <span className="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                                <div className="absolute inset-0 bg-blue-500/30 flex items-center justify-center">
+                                    <span className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
                                         {selectionOrder}
                                     </span>
                                 </div>

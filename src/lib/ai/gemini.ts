@@ -1,6 +1,6 @@
 // Gemini AI client for text generation and vision analysis
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 interface GeminiResponse {
     candidates: Array<{
@@ -11,7 +11,7 @@ interface GeminiResponse {
 }
 
 // 1. 상단 후킹 문구 생성
-export async function generateHookingCopy(fruitName: string, imageAnalysis: string): Promise<string> {
+export async function generateHookingCopy(fruitName: string, imageAnalysis: string, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 10년 차 이커머스 전문 카피라이터이자 과일 소싱 전문가야. 클릭을 부르는 '감성적'이면서도 '사실 기반'의 후킹 문구를 작성해 줘.
 
 [Instruction] 입력된 {과일_이름}과 사진 분석 정보를 바탕으로 다음 조건에 맞춰 문구를 작성해.
@@ -28,11 +28,11 @@ export async function generateHookingCopy(fruitName: string, imageAnalysis: stri
 
 [Output] 한 줄의 짧은 한국어 후킹 문구만 출력해. 다른 설명 없이 데이터만.`;
 
-    return await callGemini(prompt);
+    return await callGemini(prompt, apiKey);
 }
 
 // 2. 소구점(Selling Point) 3종 생성
-export async function generateSellingPoints(fruitName: string, imageAnalysis: string): Promise<string> {
+export async function generateSellingPoints(fruitName: string, imageAnalysis: string, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 쿠팡 로켓프레시 베스트셀러 제조기야. 고객이 고민 없이 장바구니에 담게 만드는 3단계 설득 문구를 작성해.
 
 [Instruction] 다음 3가지 영역에 맞춰 소구점을 도출해 줘.
@@ -52,11 +52,11 @@ export async function generateSellingPoints(fruitName: string, imageAnalysis: st
 
 [Constraint] 제목은 8자 이내, 상세설명은 15자 이내로 최대한 짧고 간결하게 한국어로만 작성할 것. 포맷 그대로 출력해.`;
 
-    return await callGemini(prompt);
+    return await callGemini(prompt, apiKey);
 }
 
 // 3. 품종별 주의사항 및 보관 팁
-export async function generateStorageTips(fruitName: string): Promise<string> {
+export async function generateStorageTips(fruitName: string, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 과일 품질 관리사(QC)야. 소비자가 과일을 가장 맛있게 오래 먹을 수 있는 가이드를 제공해.
 
 [Instruction] ${fruitName}의 특성에 맞춰 다음 내용을 포함해 줘.
@@ -67,10 +67,10 @@ export async function generateStorageTips(fruitName: string): Promise<string> {
 
 [Output] 3~4개의 불렛포인트 형태로 간결하게 작성. 각 항목은 "• " 로 시작해.`;
 
-    return await callGemini(prompt);
+    return await callGemini(prompt, apiKey);
 }
 
-export async function generateReviewSummary(productName: string, description: string): Promise<string> {
+export async function generateReviewSummary(productName: string, description: string, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 이커머스 실구매 고객들의 리뷰를 분석하고 핵심만 요약하는 '현명한 구매 가이드'야. 
 
 [Instruction] 실제 고객이 쓴 것처럼 생생하고 친근한 어투(해요체)를 사용해서 ${productName}의 리뷰 3종을 작성해줘. 
@@ -91,11 +91,11 @@ export async function generateReviewSummary(productName: string, description: st
 
 [Output] 포맷에 맞춰 3개의 리뷰만 출력해.`;
 
-    const response = await callGemini(prompt);
+    const response = await callGemini(prompt, apiKey);
     return response;
 }
 
-export async function generateCautionNotice(productName: string): Promise<string> {
+export async function generateCautionNotice(productName: string, apiKey?: string): Promise<string> {
     const prompt = `당신은 과일 상품 주의사항 전문가입니다.
 다음 과일 상품에 대해 일반적인 주의사항을 작성해주세요.
 상품명: ${productName}
@@ -103,11 +103,11 @@ export async function generateCautionNotice(productName: string): Promise<string
 주의사항은 3~5개 항목으로 작성하고, 보관법, 섭취 시 주의점, 알레르기 등을 포함해주세요.
 각 항목은 "• " 로 시작해주세요.`;
 
-    const response = await callGemini(prompt);
+    const response = await callGemini(prompt, apiKey);
     return response;
 }
 
-export async function generateComparisonTableData(fruitName: string, rowCount: number): Promise<string> {
+export async function generateComparisonTableData(fruitName: string, rowCount: number, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 연 매출 100억 이상의 성과를 내는 프리미엄 신선식품 전문 MD이자 카피라이터야. 
     [Instruction] ${fruitName}을 주제로 총 ${rowCount}개의 압도적인 비교 항목을 작성해줘. 
     단순한 비교가 아니라, 타사 제품을 압도하는 구체적이고 전문적인 '럭셔리' 카피를 사용해.
@@ -130,10 +130,10 @@ export async function generateComparisonTableData(fruitName: string, rowCount: n
     
     [Input] 과일 이름: ${fruitName}`;
 
-    return await callGemini(prompt);
+    return await callGemini(prompt, apiKey);
 }
 
-export async function generateSummaryCardData(fruitName: string): Promise<string> {
+export async function generateSummaryCardData(fruitName: string, apiKey?: string): Promise<string> {
     const prompt = `[System Role] 너는 명품 과일 브랜드의 기획실장이야. 
     [Instruction] ${fruitName}의 핵심 가치 3가지를 '전문성'과 '데이터'가 돋보이게 선정해줘.
     
@@ -155,12 +155,12 @@ export async function generateSummaryCardData(fruitName: string): Promise<string
     
     [Input] 과일 이름: ${fruitName}`;
 
-    return await callGemini(prompt);
+    return await callGemini(prompt, apiKey);
 }
 
-export async function analyzeProductImage(imageBase64: string): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY is not set');
+export async function analyzeProductImage(imageBase64: string, apiKeyOverride?: string): Promise<string> {
+    const apiKey = apiKeyOverride;
+    if (!apiKey) throw new Error('NO_API_KEY');
 
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: 'POST',
@@ -175,47 +175,94 @@ export async function analyzeProductImage(imageBase64: string): Promise<string> 
         })
     });
 
+    if (!response.ok) {
+        const errText = await response.text();
+        console.error(`GEMINI IMAGE ANALYSIS ERROR (${response.status}):`, errText);
+        if (response.status === 429 || errText.toLowerCase().includes("quota") || errText.includes("exhausted")) {
+            throw new Error('QUOTA_EXCEEDED');
+        }
+        if (errText.includes('API_KEY_INVALID') || errText.includes('API key not valid')) {
+            throw new Error('INVALID_API_KEY');
+        }
+        throw new Error('GEMINI_API_ERROR');
+    }
+
     const data: GeminiResponse = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function callGemini(prompt: string): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
+async function callGemini(prompt: string, apiKeyOverride?: string): Promise<string> {
+    const apiKey = apiKeyOverride;
     if (!apiKey) {
-        console.error('SERVER ERROR: GEMINI_API_KEY is not set');
-        throw new Error('GEMINI_API_KEY is not set');
+        throw new Error('NO_API_KEY');
     }
 
     console.log('--- CALLING GEMINI API ---');
     console.log('Prompt head:', prompt.substring(0, 50) + '...');
 
-    try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
+    const MAX_RETRIES = 2;
+    let lastError: Error | null = null;
 
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error(`GEMINI API ERROR (${response.status}):`, errText);
-            return '';
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            if (attempt > 0) {
+                console.log(`Gemini retry attempt ${attempt}/${MAX_RETRIES}, waiting 3s...`);
+                await new Promise(r => setTimeout(r, 3000));
+            }
+
+            const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error(`GEMINI API ERROR (${response.status}):`, errText);
+                if (response.status === 429 || errText.toLowerCase().includes("quota") || errText.includes("exhausted")) {
+                    throw new Error("QUOTA_EXCEEDED");
+                }
+                if (errText.includes('API_KEY_INVALID') || errText.includes('API key not valid')) {
+                    throw new Error("INVALID_API_KEY");
+                }
+                if (response.status === 503 || response.status === 500) {
+                    lastError = new Error("GEMINI_OVERLOADED");
+                    continue; // retry
+                }
+                throw new Error("GEMINI_API_ERROR");
+            }
+
+            const data: GeminiResponse = await response.json();
+            const result = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+            if (!result) {
+                console.warn('GEMINI API WARNING: Received empty result. Data:', JSON.stringify(data));
+            } else {
+                console.log('Gemini Success. Result length:', result.length);
+            }
+
+            return result;
+        } catch (error: any) {
+            console.error('FETCH ERROR calling Gemini:', error);
+            if (error.message === "QUOTA_EXCEEDED" || error.message === "NO_API_KEY" || error.message === "INVALID_API_KEY") {
+                throw error;
+            }
+            if (error.message === "GEMINI_OVERLOADED") {
+                lastError = error;
+                continue; // retry
+            }
+            if (error.message === "GEMINI_API_ERROR") {
+                throw error;
+            }
+            lastError = error;
         }
-
-        const data: GeminiResponse = await response.json();
-        const result = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-        if (!result) {
-            console.warn('GEMINI API WARNING: Received empty result. Data:', JSON.stringify(data));
-        } else {
-            console.log('Gemini Success. Result length:', result.length);
-        }
-
-        return result;
-    } catch (error) {
-        console.error('FETCH ERROR calling Gemini:', error);
-        return '';
     }
+
+    // All retries exhausted
+    if (lastError?.message === "GEMINI_OVERLOADED") {
+        throw new Error("GEMINI_OVERLOADED");
+    }
+    return '';
 }

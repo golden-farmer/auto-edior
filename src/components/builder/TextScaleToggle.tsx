@@ -25,8 +25,8 @@ export function TextScaleToggle({ value, onChange, className = '' }: TextScaleTo
                     onClick={() => onChange(key)}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all
                         ${value === key
-                            ? 'bg-emerald-500 text-white shadow-md'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            ? 'bg-blue-500 text-white shadow-md'
+                            : 'bg-white border text-gray-700 hover:bg-gray-200'
                         }`}
                 >
                     {label}

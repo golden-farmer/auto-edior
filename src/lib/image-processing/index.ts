@@ -18,6 +18,7 @@ export interface CaptureOptions {
     primaryColor?: string;
     secondaryColor?: string;
     textColor?: string;
+    overlayNodes?: any[];
 }
 
 /**
@@ -136,19 +137,22 @@ export async function stitchModuleImages(
     }
 
     const totalHeight = moduleImages.reduce((sum, img) => sum + img.height, 0);
+    const COUPANG_WIDTH = 780;
+    const LAYOUT_WIDTH = 430;
+    const pixelRatio = COUPANG_WIDTH / LAYOUT_WIDTH;
 
     // If total height fits in one image, combine them.
-    if (totalHeight <= MAX_IMAGE_HEIGHT) {
-        const combined = await combineImages(moduleImages.map(m => m.dataUrl));
+    if (totalHeight * pixelRatio <= MAX_IMAGE_HEIGHT) { // use scaled height for check
+        const combined = await combineImages(moduleImages.map(m => m.dataUrl), options?.overlayNodes, pixelRatio, 0);
         return { images: [combined], needsZip: false, totalHeight };
     }
 
     // Otherwise, split them into chunks based on height
-    const splitImages = await splitModuleImages(moduleImages, MAX_IMAGE_HEIGHT);
+    const splitImages = await splitModuleImages(moduleImages, MAX_IMAGE_HEIGHT, options?.overlayNodes, pixelRatio);
     return { images: splitImages, needsZip: true, totalHeight };
 }
 
-async function combineImages(dataUrls: string[]): Promise<string> {
+async function combineImages(dataUrls: string[], overlayNodes?: any[], pixelRatio: number = 1.814, startY: number = 0): Promise<string> {
     const images = await Promise.all(dataUrls.map(loadImage));
     const totalHeight = images.reduce((sum, img) => sum + img.height, 0);
     const maxWidth = Math.max(...images.map(img => img.width));
@@ -164,30 +168,76 @@ async function combineImages(dataUrls: string[]): Promise<string> {
         y += img.height;
     }
 
+    if (overlayNodes && overlayNodes.length > 0) {
+        await drawOverlayNodes(canvas, overlayNodes, pixelRatio, startY);
+    }
+
     return canvas.toDataURL('image/png');
+}
+
+async function drawOverlayNodes(canvas: HTMLCanvasElement, nodes: any[], pixelRatio: number, startY: number) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    for (const node of nodes) {
+        ctx.save();
+        const px = node.x * pixelRatio;
+        const py = (node.y * pixelRatio) - startY; // scale y layout coords then subtract startY which is already scaled
+
+        ctx.translate(px, py);
+        if (node.rotation) {
+            ctx.rotate((node.rotation * Math.PI) / 180);
+        }
+
+        if (node.type === 'text') {
+            const fontSize = node.fontSize * pixelRatio;
+            // Konva sets transform origin to left-top by default
+            ctx.font = `bold ${fontSize}px ${node.fontFamily || 'sans-serif'}`;
+            ctx.fillStyle = node.fill || '#000000';
+            ctx.textBaseline = 'top';
+
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4 * pixelRatio;
+            ctx.shadowOffsetX = 2 * pixelRatio;
+            ctx.shadowOffsetY = 2 * pixelRatio;
+
+            ctx.fillText(node.text, 0, 0);
+        } else if (node.type === 'image') {
+            const img = await loadImage(node.url);
+            const w = node.width * pixelRatio;
+            const h = node.height * pixelRatio;
+            ctx.drawImage(img, 0, 0, w, h);
+        }
+
+        ctx.restore();
+    }
 }
 
 async function splitModuleImages(
     modules: { dataUrl: string; height: number }[],
-    maxHeight: number
+    maxHeight: number,
+    overlayNodes?: any[],
+    pixelRatio: number = 1.814
 ): Promise<string[]> {
     const results: string[] = [];
     let currentBatch: string[] = [];
-    let currentHeight = 0;
+    let currentHeightScaled = 0;
+    let totalAccumulatedHeightScaled = 0;
 
     for (const module of modules) {
-        // If adding this module exceeds max height, flush current batch
-        if (currentHeight + module.height > maxHeight && currentBatch.length > 0) {
-            results.push(await combineImages(currentBatch));
+        const scaledModuleHeight = module.height * pixelRatio;
+        if (currentHeightScaled + scaledModuleHeight > maxHeight && currentBatch.length > 0) {
+            results.push(await combineImages(currentBatch, overlayNodes, pixelRatio, totalAccumulatedHeightScaled));
+            totalAccumulatedHeightScaled += currentHeightScaled;
             currentBatch = [];
-            currentHeight = 0;
+            currentHeightScaled = 0;
         }
         currentBatch.push(module.dataUrl);
-        currentHeight += module.height;
+        currentHeightScaled += scaledModuleHeight;
     }
 
     if (currentBatch.length > 0) {
-        results.push(await combineImages(currentBatch));
+        results.push(await combineImages(currentBatch, overlayNodes, pixelRatio, totalAccumulatedHeightScaled));
     }
 
     return results;
