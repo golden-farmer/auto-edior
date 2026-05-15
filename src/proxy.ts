@@ -52,21 +52,12 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith(path),
   );
 
-  console.log("[proxy] auth check", {
-    pathname,
-    isProtectedPath,
-    hasUser: Boolean(user),
-  });
-
   if (
     isProtectedPath &&
     !user
   ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    console.warn("[proxy] redirecting to login", {
-      from: pathname,
-    });
     return NextResponse.redirect(redirectUrl);
   }
 

