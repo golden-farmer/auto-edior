@@ -14,6 +14,7 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request,
   });
+  const pathname = request.nextUrl.pathname;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,10 +24,21 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
+          });
+
+          response = NextResponse.next({
+            request,
+          });
+
+          cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
+          });
+
+          Object.entries(headers).forEach(([key, value]) => {
+            response.headers.set(key, value);
           });
         },
       },
@@ -36,13 +48,25 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isProtectedPath = PROTECTED_PATHS.some((path) =>
+    pathname.startsWith(path),
+  );
+
+  console.log("[proxy] auth check", {
+    pathname,
+    isProtectedPath,
+    hasUser: Boolean(user),
+  });
 
   if (
-    PROTECTED_PATHS.some((path) => request.nextUrl.pathname.startsWith(path)) &&
+    isProtectedPath &&
     !user
   ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
+    console.warn("[proxy] redirecting to login", {
+      from: pathname,
+    });
     return NextResponse.redirect(redirectUrl);
   }
 
