@@ -1,5 +1,8 @@
 import type { BuilderState, ImageUpload, MaskRegion, ModuleConfig, OverlayNode, ProductData, TextScale, FontType } from '@/types';
 
+const PERSISTED_IMAGE_MAX_DIMENSION = 1200;
+const PERSISTED_IMAGE_QUALITY = 0.72;
+
 export type PersistedImageUpload = {
   id: string;
   previewUrl: string;
@@ -26,6 +29,49 @@ function isObjectUrl(url: string) {
   return url.startsWith('blob:');
 }
 
+function shouldCompressImageUrl(url: string) {
+  return url.startsWith('data:') || isObjectUrl(url);
+}
+
+async function loadImageElement(src: string) {
+  return await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Failed to load image for compression.'));
+    image.src = src;
+  });
+}
+
+async function compressImageUrl(url: string) {
+  if (!shouldCompressImageUrl(url)) {
+    return url;
+  }
+
+  const image = await loadImageElement(url);
+  const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+
+  if (!longestSide) {
+    return url;
+  }
+
+  const scale = Math.min(1, PERSISTED_IMAGE_MAX_DIMENSION / longestSide);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Failed to prepare image compression canvas.');
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+
+  return canvas.toDataURL('image/jpeg', PERSISTED_IMAGE_QUALITY);
+}
+
 async function urlToDataUrl(url: string) {
   if (!url || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
     return url;
@@ -47,8 +93,10 @@ async function urlToDataUrl(url: string) {
 }
 
 async function serializeImage(image: ImageUpload): Promise<PersistedImageUpload> {
-  const previewUrl = await urlToDataUrl(image.previewUrl);
-  const transformedUrl = image.transformedUrl ? await urlToDataUrl(image.transformedUrl) : undefined;
+  const previewUrl = await compressImageUrl(await urlToDataUrl(image.previewUrl));
+  const transformedUrl = image.transformedUrl
+    ? await compressImageUrl(await urlToDataUrl(image.transformedUrl))
+    : undefined;
 
   return {
     id: image.id,
