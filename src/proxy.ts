@@ -72,6 +72,5 @@ export const config = {
     "/cs-responder/:path*",
     "/margin-calculator/:path*",
     "/admin/:path*",
-    "/auth/callback",
   ],
 };
