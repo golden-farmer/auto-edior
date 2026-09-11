@@ -833,13 +833,18 @@ function FarmerStory({ productData, images, variant, data, onUpdateData }: Modul
     const imgSrc = farmerImage?.transformedUrl || farmerImage?.previewUrl;
     const styles = getThemeStyles(variant);
 
-    const farmerName = (data?.farmerName as string) || '생산자';
+    const normalizeFarmerStoryTitle = (value: string) => value.replace(/(?:\s*농부의 이야기){2,}$/, ' 농부의 이야기');
+    const farmerName = typeof data?.farmerName === 'string' ? data.farmerName.replace(/(?:\s*농부의 이야기)+$/, '').trim() : '생산자';
+    const farmerStoryTitle = typeof data?.farmerStoryTitle === 'string' ? normalizeFarmerStoryTitle(data.farmerStoryTitle) : `${farmerName || '생산자'} 농부의 이야기`;
     const storyText = (data?.storyText as string) || '"정직하게 키운 농산물만 보냅니다."';
 
     const handleUpdateRatio = (r: number) => onUpdateData && onUpdateData({ aspectRatio: r });
     const handleImageDrop = (idx: number) => onUpdateData && onUpdateData({ imageIndex: idx });
     const handleTextChange = (field: string) => (value: string) => {
         onUpdateData && onUpdateData({ [field]: value });
+    };
+    const handleFarmerStoryTitleChange = (value: string) => {
+        onUpdateData && onUpdateData({ farmerStoryTitle: normalizeFarmerStoryTitle(value) });
     };
 
     if (variant === 'B' || variant === 'H' || variant === 'E') {
@@ -871,7 +876,7 @@ function FarmerStory({ productData, images, variant, data, onUpdateData }: Modul
                     {farmerImage ? <img src={imgSrc} className="w-full h-full object-cover" /> : <div className="bg-gray-200 w-full h-full flex items-center justify-center text-gray-400 aspect-video">이미지 드롭</div>}
                 </ResizableImageContainer>
             </DroppableImageZone>
-            <EditableText value={`${farmerName} 농부의 이야기`} onChange={handleTextChange('farmerName')} className={`text-xl font-bold ${styles.text} mb-4`} tag="h2" />
+            <EditableText value={farmerStoryTitle} onChange={handleFarmerStoryTitleChange} className={`text-xl font-bold ${styles.text} mb-4`} tag="h2" placeholder="" />
             <EditableText value={(data?.storyText as string) || '자연 그대로의 맛을 전하기 위해 365일 땀흘려 키웠습니다.'} onChange={handleTextChange('storyText')} className={`${styles.text} max-w-md leading-relaxed opacity-90`} tag="p" multiline />
         </div>
     );
