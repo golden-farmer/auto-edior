@@ -6,6 +6,9 @@ import { useAuth } from "./AuthProvider";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 const APPROVAL_EXEMPT_PATHS = ["/pending"];
+const isDevAuthBypass =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { status, profile } = useAuth();
@@ -13,6 +16,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (isDevAuthBypass) {
+      return;
+    }
+
     if (status === "loading") {
       return;
     }
@@ -41,6 +48,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       router.push("/pending");
     }
   }, [pathname, profile?.status, router, status]);
+
+  if (isDevAuthBypass) {
+    return <>{children}</>;
+  }
 
   if (status === "loading") {
     return (

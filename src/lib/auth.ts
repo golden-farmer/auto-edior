@@ -16,8 +16,29 @@ export type AppProfile = {
   updated_at: string;
 };
 
+const isDevAuthBypass =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+const devProfile: AppProfile = {
+  id: "dev-user",
+  email: "dev@localhost",
+  name: "Dev User",
+  image: null,
+  company_name: "Dev Company",
+  gemini_api_key: null,
+  role: "ADMIN",
+  status: "APPROVED",
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+};
+
 export async function getAuthenticatedContext() {
   const supabase = await createServerSupabaseClient();
+
+  if (isDevAuthBypass) {
+    return { supabase, user: null, profile: devProfile };
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

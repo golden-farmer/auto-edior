@@ -15,6 +15,13 @@ export async function proxy(request: NextRequest) {
     request,
   });
   const pathname = request.nextUrl.pathname;
+  const isDevAuthBypass =
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+
+  if (isDevAuthBypass) {
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

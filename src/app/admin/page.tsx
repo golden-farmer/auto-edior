@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+
+const PAGE_SIZE = 20;
 
 type AdminUser = {
   id: string;
@@ -18,6 +20,8 @@ export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -62,6 +66,37 @@ export default function AdminPage() {
     }
   };
 
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return users;
+    }
+
+    return users.filter((user) =>
+      [
+        user.name ?? "",
+        user.email,
+        user.status,
+        user.role,
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [searchQuery, users]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
   if (loading || status === "loading") {
     return <div className="p-8 text-center">Loading...</div>;
   }
@@ -70,8 +105,17 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="mx-auto max-w-6xl rounded-lg bg-white p-6 shadow">
         <h1 className="mb-6 text-2xl font-bold text-[#000]">사용자 관리</h1>
+        <div className="mb-4">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="이름, 이메일, 상태, 권한 검색"
+            className="w-full max-w-md rounded border border-gray-300 px-4 py-2 text-sm text-[#000] outline-none transition focus:border-gray-500"
+          />
+        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full whitespace-nowrap text-left text-sm">
+          <table className="min-w-[1120px] whitespace-nowrap text-left text-sm">
             <thead className="border-b-2 border-gray-200 bg-gray-50 tracking-wider">
               <tr>
                 <th className="px-6 py-4 font-semibold text-gray-600">이름</th>
@@ -83,7 +127,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 text-[#000]">
                   <td className="px-6 py-4">{user.name || "-"}</td>
                   <td className="px-6 py-4">{user.email}</td>
@@ -144,16 +188,45 @@ export default function AdminPage() {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
+              {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    등록된 사용자가 없습니다.
+                    {searchQuery ? "검색 결과가 없습니다." : "등록된 사용자가 없습니다."}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {filteredUsers.length > 0 && (
+          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+            <span>
+              총 {filteredUsers.length}명 중 {(currentPage - 1) * PAGE_SIZE + 1}-
+              {Math.min(currentPage * PAGE_SIZE, filteredUsers.length)}명 표시
+            </span>
+            <div className="space-x-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+                className="rounded bg-gray-500 px-3 py-1 text-white transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                이전
+              </button>
+              <span className="text-[#000]">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded bg-gray-500 px-3 py-1 text-white transition hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                다음
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

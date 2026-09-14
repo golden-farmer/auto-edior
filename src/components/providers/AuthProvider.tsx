@@ -23,6 +23,21 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const isDevAuthBypass =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+const devProfile: AppProfile = {
+  id: "dev-user",
+  email: "dev@localhost",
+  name: "Dev User",
+  image: null,
+  company_name: "Dev Company",
+  gemini_api_key: null,
+  role: "ADMIN",
+  status: "APPROVED",
+  created_at: new Date(0).toISOString(),
+  updated_at: new Date(0).toISOString(),
+};
 
 async function upsertAndLoadProfile(user: User) {
   const supabase = createClient();
@@ -57,8 +72,12 @@ async function upsertAndLoadProfile(user: User) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<AppProfile | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("loading");
+  const [profile, setProfile] = useState<AppProfile | null>(
+    isDevAuthBypass ? devProfile : null,
+  );
+  const [status, setStatus] = useState<AuthStatus>(
+    isDevAuthBypass ? "authenticated" : "loading",
+  );
 
   const syncSession = async (nextSession: Session | null) => {
     setSession(nextSession);
@@ -77,6 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (isDevAuthBypass) {
+      return;
+    }
+
     const supabase = createClient();
 
     void supabase.auth.getSession().then(({ data }) => {
@@ -100,6 +123,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     status,
     refreshProfile: async () => {
+      if (isDevAuthBypass) {
+        setProfile(devProfile);
+        return;
+      }
+
       if (!user) {
         setProfile(null);
         return;
@@ -108,6 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(await upsertAndLoadProfile(user));
     },
     signOut: async () => {
+      if (isDevAuthBypass) {
+        setSession(null);
+        setUser(null);
+        setProfile(devProfile);
+        setStatus("authenticated");
+        return;
+      }
+
       const supabase = createClient();
       await supabase.auth.signOut();
       setSession(null);
