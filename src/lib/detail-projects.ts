@@ -1,5 +1,7 @@
 import type { BuilderState, ImageUpload, MaskRegion, ModuleConfig, OverlayNode, ProductData, TextScale, FontType } from '@/types';
+import { createClient } from '@/lib/supabase/client';
 
+const DETAIL_PROJECT_IMAGE_BUCKET = 'detail-project-images';
 const PERSISTED_IMAGE_MAX_DIMENSION = 1200;
 const PERSISTED_IMAGE_QUALITY = 0.72;
 
@@ -31,6 +33,10 @@ function isObjectUrl(url: string) {
 
 function shouldCompressImageUrl(url: string) {
   return url.startsWith('data:') || isObjectUrl(url);
+}
+
+function shouldUploadImage(image: ImageUpload) {
+  return Boolean(image.file) || isObjectUrl(image.previewUrl);
 }
 
 async function loadImageElement(src: string) {
@@ -72,6 +78,53 @@ async function compressImageUrl(url: string) {
   return canvas.toDataURL('image/jpeg', PERSISTED_IMAGE_QUALITY);
 }
 
+function dataUrlToBlob(dataUrl: string) {
+  const [header, base64Data] = dataUrl.split(',');
+  const mimeMatch = header.match(/^data:(.*?);base64$/);
+  const mimeType = mimeMatch?.[1] ?? 'image/jpeg';
+  const binary = atob(base64Data);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function uploadPersistedImage(dataUrl: string, imageId: string, variant: string) {
+  if (!dataUrl.startsWith('data:')) {
+    return dataUrl;
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error('Storage upload requires authentication.');
+  }
+
+  const path = `${user.id}/${imageId}/${variant}-${Date.now()}.jpg`;
+  const { error } = await supabase.storage
+    .from(DETAIL_PROJECT_IMAGE_BUCKET)
+    .upload(path, dataUrlToBlob(dataUrl), {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data } = supabase.storage
+    .from(DETAIL_PROJECT_IMAGE_BUCKET)
+    .getPublicUrl(path);
+
+  return data.publicUrl;
+}
+
 async function urlToDataUrl(url: string) {
   if (!url || url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
     return url;
@@ -97,11 +150,24 @@ async function serializeImage(image: ImageUpload): Promise<PersistedImageUpload>
   const transformedUrl = image.transformedUrl
     ? await compressImageUrl(await urlToDataUrl(image.transformedUrl))
     : undefined;
+  let persistedPreviewUrl = previewUrl;
+  let persistedTransformedUrl = transformedUrl;
+
+  if (shouldUploadImage(image)) {
+    try {
+      persistedPreviewUrl = await uploadPersistedImage(previewUrl, image.id, 'preview');
+      persistedTransformedUrl = transformedUrl
+        ? await uploadPersistedImage(transformedUrl, image.id, 'transformed')
+        : undefined;
+    } catch (error) {
+      console.error('Failed to upload detail project image. Falling back to base64 snapshot.', error);
+    }
+  }
 
   return {
     id: image.id,
-    previewUrl,
-    transformedUrl,
+    previewUrl: persistedPreviewUrl,
+    transformedUrl: persistedTransformedUrl,
     isProcessing: false,
     masks: image.masks,
   };
