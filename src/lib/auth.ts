@@ -1,5 +1,9 @@
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
-import { hasSite1Access, type AppProfile } from "@/lib/auth-shared";
+import {
+  hasSite1Access,
+  shouldConvertExpiredSite2UserToSite1,
+  type AppProfile,
+} from "@/lib/auth-shared";
 
 const isDevAuthBypass =
   process.env.NODE_ENV === "development" &&
@@ -57,6 +61,22 @@ export async function getAuthenticatedContext() {
       .single<AppProfile>();
 
     profile = createdProfile;
+  }
+
+  if (shouldConvertExpiredSite2UserToSite1(profile ?? null)) {
+    const { data: convertedProfile } = await supabase
+      .from("users")
+      .update({
+        status: "PENDING",
+        plan_type: "paid",
+        app_access: "site1",
+        upgraded_at: new Date().toISOString(),
+      })
+      .eq("id", user.id)
+      .select("*")
+      .single<AppProfile>();
+
+    profile = convertedProfile ?? profile;
   }
 
   return {

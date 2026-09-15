@@ -7,18 +7,63 @@ import { useAuth } from "@/components/providers/AuthProvider";
 const PAGE_SIZE = 20;
 
 type PlanType = "free" | "paid";
+type UserTab = PlanType | "expired";
 
 type AdminUser = {
   id: string;
   name: string | null;
   email: string;
   created_at: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
   role: "USER" | "ADMIN";
   plan_type?: PlanType | null;
   app_access?: "site1" | "site2" | "both" | null;
   upgraded_at?: string | null;
 };
+
+type FreeUsersExpiration = {
+  expiresAt: string | null;
+  pendingCount: number;
+};
+
+function formatKoreanExpirationText(expiresAt: string | null, count: number) {
+  if (!expiresAt) {
+    return `${count}명이 만료 예약 대기 중입니다.`;
+  }
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(new Date(expiresAt));
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return `${count}명이 ${getPart("year")}-${getPart("month")}-${getPart("day")} ${getPart("hour")}:${getPart("minute")}에 만료됩니다.`;
+}
+
+function toDatetimeLocalValue(expiresAt: string | null) {
+  if (!expiresAt) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  return formatter.format(new Date(expiresAt)).replace(" ", "T");
+}
 
 export default function AdminPage() {
   const { profile, status } = useAuth();
@@ -27,7 +72,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activePlanTab, setActivePlanTab] = useState<PlanType>("paid");
+  const [activePlanTab, setActivePlanTab] = useState<UserTab>("paid");
+  const [showExpiredTab, setShowExpiredTab] = useState(false);
+  const [freeUsersExpiration, setFreeUsersExpiration] = useState<FreeUsersExpiration>({
+    expiresAt: null,
+    pendingCount: 0,
+  });
+  const [freeUsersExpirationInput, setFreeUsersExpirationInput] = useState("");
+  const [savingExpiration, setSavingExpiration] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -42,6 +94,7 @@ export default function AdminPage() {
       }
 
       void fetchUsers();
+      void fetchFreeUsersExpiration();
     }
   }, [profile?.role, router, status]);
 
@@ -54,6 +107,49 @@ export default function AdminPage() {
       console.error("Failed to fetch users", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFreeUsersExpiration = async () => {
+    try {
+      const res = await fetch("/api/admin/free-users-expiration");
+      const data = (await res.json()) as FreeUsersExpiration;
+
+      if (res.ok) {
+        setFreeUsersExpiration(data);
+        setFreeUsersExpirationInput(toDatetimeLocalValue(data.expiresAt));
+      }
+    } catch (error) {
+      console.error("Failed to fetch free users expiration", error);
+    }
+  };
+
+  const saveFreeUsersExpiration = async () => {
+    if (!freeUsersExpirationInput) {
+      return;
+    }
+
+    setSavingExpiration(true);
+
+    try {
+      const res = await fetch("/api/admin/free-users-expiration", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expiresAt: new Date(freeUsersExpirationInput).toISOString(),
+        }),
+      });
+      const data = (await res.json()) as FreeUsersExpiration;
+
+      if (res.ok) {
+        setFreeUsersExpiration(data);
+        setFreeUsersExpirationInput(toDatetimeLocalValue(data.expiresAt));
+        await fetchUsers();
+      }
+    } catch (error) {
+      console.error("Failed to save free users expiration", error);
+    } finally {
+      setSavingExpiration(false);
     }
   };
 
@@ -96,9 +192,31 @@ export default function AdminPage() {
     await updateUser(id, undefined, undefined, "paid", "site1");
   };
 
+  const toggleExpiredTab = () => {
+    setShowExpiredTab((current) => {
+      if (current && activePlanTab === "expired") {
+        setActivePlanTab("paid");
+      }
+
+      return !current;
+    });
+  };
+
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const usersByPlan = users.filter((user) => (user.plan_type ?? "paid") === activePlanTab);
+    const usersByPlan = users.filter((user) => {
+      const planType = user.plan_type ?? "paid";
+
+      if (activePlanTab === "expired") {
+        return planType === "free" && user.app_access === "site2" && user.status === "EXPIRED";
+      }
+
+      if (activePlanTab === "free") {
+        return planType === "free" && user.status !== "EXPIRED";
+      }
+
+      return planType === "paid";
+    });
 
     if (!query) {
       return usersByPlan;
@@ -116,8 +234,16 @@ export default function AdminPage() {
     );
   }, [activePlanTab, searchQuery, users]);
 
-  const freeUserCount = users.filter((user) => (user.plan_type ?? "paid") === "free").length;
+  const freeUserCount = users.filter(
+    (user) => (user.plan_type ?? "paid") === "free" && user.status !== "EXPIRED",
+  ).length;
   const paidUserCount = users.filter((user) => (user.plan_type ?? "paid") === "paid").length;
+  const expiredUserCount = users.filter(
+    (user) =>
+      (user.plan_type ?? "paid") === "free" &&
+      user.app_access === "site2" &&
+      user.status === "EXPIRED",
+  ).length;
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
   const paginatedUsers = filteredUsers.slice(
@@ -146,7 +272,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setActivePlanTab("paid")}
             className={`rounded px-4 py-2 text-sm font-medium transition ${activePlanTab === "paid"
-              ? "bg-blue-600 text-white"
+              ? "bg-black text-white"
               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
           >
@@ -156,13 +282,51 @@ export default function AdminPage() {
             type="button"
             onClick={() => setActivePlanTab("free")}
             className={`rounded px-4 py-2 text-sm font-medium transition ${activePlanTab === "free"
-              ? "bg-blue-600 text-white"
+              ? "bg-black text-white"
               : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
           >
             무료 사이트 사용자 ({freeUserCount})
           </button>
+          {showExpiredTab && (
+            <button
+              type="button"
+              onClick={() => setActivePlanTab("expired")}
+              className={`rounded px-4 py-2 text-sm font-medium transition ${activePlanTab === "expired"
+                ? "bg-black text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+            >
+              만료된 사용자 ({expiredUserCount})
+            </button>
+          )}
         </div>
+        {activePlanTab === "free" && (
+          <div className="mb-4 rounded border border-gray-200 bg-gray-50 p-4">
+            <p className="mb-3 text-sm font-medium text-gray-700">
+              {formatKoreanExpirationText(
+                freeUsersExpiration.expiresAt,
+                freeUsersExpiration.pendingCount,
+              )}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="datetime-local"
+                value={freeUsersExpirationInput}
+                onChange={(event) => setFreeUsersExpirationInput(event.target.value)}
+                className="rounded border border-gray-300 px-3 py-2 text-sm text-[#000] outline-none transition focus:border-gray-500"
+              />
+              <button
+                type="button"
+                onClick={saveFreeUsersExpiration}
+                disabled={!freeUsersExpirationInput || savingExpiration}
+                className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {savingExpiration ? "적용 중..." : "적용"}
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mb-4">
           <input
             type="search"
@@ -294,6 +458,19 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={toggleExpiredTab}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            toggleExpiredTab();
+          }
+        }}
+        className="fixed bottom-1 right-2 select-none text-xs text-gray-300"
+      >
+        .
+      </span>
     </div>
   );
 }

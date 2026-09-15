@@ -9,7 +9,10 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import type { AppProfile } from "@/lib/auth-shared";
+import {
+  shouldConvertExpiredSite2UserToSite1,
+  type AppProfile,
+} from "@/lib/auth-shared";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -67,6 +70,22 @@ async function upsertAndLoadProfile(user: User) {
       .single<AppProfile>();
 
     profile = createdProfile;
+  }
+
+  if (shouldConvertExpiredSite2UserToSite1(profile ?? null)) {
+    const { data: convertedProfile } = await supabase
+      .from("users")
+      .update({
+        status: "PENDING",
+        plan_type: "paid",
+        app_access: "site1",
+        upgraded_at: new Date().toISOString(),
+      })
+      .eq("id", user.id)
+      .select("*")
+      .single<AppProfile>();
+
+    profile = convertedProfile ?? profile;
   }
 
   return profile ?? null;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthenticatedContext } from "@/lib/auth";
+import { applyDueFreeUserExpiration } from "@/lib/server/free-user-expiration";
 
 async function requireAdmin() {
   const { profile } = await getAuthenticatedContext();
@@ -21,6 +22,8 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
+    await applyDueFreeUserExpiration(supabase);
+
     const { data, error } = await supabase
       .from("users")
       .select("id, name, email, created_at, status, role, plan_type, app_access, upgraded_at")

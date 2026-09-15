@@ -1,5 +1,5 @@
 export type AppRole = "USER" | "ADMIN";
-export type AppUserStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type AppUserStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 export type AppPlanType = "free" | "paid";
 export type AppAccess = "site1" | "site2" | "both";
 
@@ -26,4 +26,12 @@ export function hasSite1Access(profile: Pick<AppProfile, "app_access" | "plan_ty
 
   const appAccess = profile.app_access ?? "site1";
   return appAccess === "site1" || appAccess === "both";
+}
+
+export function shouldConvertExpiredSite2UserToSite1(profile: AppProfile | null) {
+  return (
+    profile?.status === "EXPIRED" &&
+    profile.plan_type === "free" &&
+    profile.app_access === "site2"
+  );
 }
