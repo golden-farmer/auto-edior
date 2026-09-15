@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { hasSite1Access } from "@/lib/auth";
+import { hasSite1Access } from "@/lib/auth-shared";
 
 const PRODUCTION_APP_ORIGIN = "https://auto-edior.vercel.app";
 

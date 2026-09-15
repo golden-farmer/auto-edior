@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import type { AppProfile } from "@/lib/auth";
+import type { AppProfile } from "@/lib/auth-shared";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 

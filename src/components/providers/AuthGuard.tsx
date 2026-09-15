@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "./AuthProvider";
-import { hasSite1Access } from "@/lib/auth";
+import { hasSite1Access } from "@/lib/auth-shared";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 const APPROVAL_EXEMPT_PATHS = ["/pending"];
