@@ -553,18 +553,15 @@ export function ActionBar() {
 
         try {
             const snapshot = await serializeDetailProjectSnapshot(state);
-            const response = await fetch(
-                state.currentProjectId ? `/api/detail-projects/${state.currentProjectId}` : '/api/detail-projects',
-                {
-                    method: state.currentProjectId ? 'PATCH' : 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: requestedTitle,
-                        productName: state.productData.productName,
-                        snapshot,
-                    }),
-                },
-            );
+            const response = await fetch('/api/detail-projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: requestedTitle,
+                    productName: state.productData.productName,
+                    snapshot,
+                }),
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
@@ -578,9 +575,7 @@ export function ActionBar() {
                 title: data.project.title,
             });
 
-            if (!state.currentProjectId) {
-                router.replace(`/detail-editor?projectId=${data.project.id}`);
-            }
+            router.replace(`/detail-editor?projectId=${data.project.id}`);
 
             alert(`"${data.project.title}" 저장이 완료되었습니다.`);
         } catch (error) {
