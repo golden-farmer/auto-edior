@@ -35,7 +35,7 @@ export default function LoginPage() {
         window.location.hostname === "127.0.0.1"
           ? window.location.origin
           : PRODUCTION_APP_ORIGIN;
-      const redirectTo = `${origin}/auth/callback?next=/dashboard`;
+      const redirectTo = `${origin}/auth/callback`;
 
       await supabase.auth.signInWithOAuth({
         provider: "google",
