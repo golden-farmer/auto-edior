@@ -585,7 +585,7 @@ export function ActionBar() {
             alert(`"${data.project.title}" 저장이 완료되었습니다.`);
         } catch (error) {
             console.error(error);
-            alert(error instanceof Error ? error.message : '임시저장에 실패했습니다.');
+            alert(error instanceof Error ? error.message : '다른 이름으로 저장에 실패했습니다.');
         } finally {
             setIsSavingProject(false);
         }
@@ -593,7 +593,7 @@ export function ActionBar() {
 
     const handleOverwriteProject = async () => {
         if (!state.currentProjectId) {
-            alert('현재 저장된 캔버스가 없습니다. 먼저 임시 저장을 해주세요.');
+            alert('현재 저장된 캔버스가 없습니다. 먼저 다른 이름으로 저장을 해주세요.');
             return;
         }
 
@@ -671,7 +671,7 @@ export function ActionBar() {
                         disabled={state.isGenerating || isSavingProject}
                         className="px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 font-semibold transition-colors hover:bg-blue-100 disabled:opacity-50"
                     >
-                        {isSavingProject ? '저장 중...' : '임시 저장'}
+                        {isSavingProject ? '저장 중...' : '다른 이름으로 저장'}
                     </button>
                     {/* 건들지말것 */}
                     {/* <button

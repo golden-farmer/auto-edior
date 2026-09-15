@@ -35,8 +35,12 @@ function shouldCompressImageUrl(url: string) {
   return url.startsWith('data:') || isObjectUrl(url);
 }
 
+function isPersistableImageUrl(url?: string) {
+  return Boolean(url && (url.startsWith('data:') || isObjectUrl(url)));
+}
+
 function shouldUploadImage(image: ImageUpload) {
-  return Boolean(image.file) || isObjectUrl(image.previewUrl);
+  return Boolean(image.file) || isPersistableImageUrl(image.previewUrl) || isPersistableImageUrl(image.transformedUrl);
 }
 
 async function loadImageElement(src: string) {

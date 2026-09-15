@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     if ((count ?? 0) >= 10) {
       return NextResponse.json(
-        { error: '임시 저장은 계정당 최대 10개까지 가능합니다. 기존 저장본을 삭제하거나 수정해주세요.' },
+        { error: '다른 이름으로 저장은 계정당 최대 10개까지 가능합니다. 기존 저장본을 삭제하거나 수정해주세요.' },
         { status: 409 },
       );
     }

@@ -83,7 +83,7 @@ export default function DashboardPage() {
             </div>
             <h2 className="mb-2 text-xl font-semibold text-gray-900">상세페이지 저장함</h2>
             <p className="text-gray-600">
-              임시 저장한 상세페이지를 불러오고 여러 캔버스를 관리합니다.
+              다른 이름으로 저장한 상세페이지를 불러오고 여러 캔버스를 관리합니다.
             </p>
           </Link>
 

@@ -92,7 +92,7 @@ export default function DetailProjectsPage() {
             </Link>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">상세페이지 저장함</h1>
-              <p className="mt-2 text-gray-600">임시 저장본을 열고 이어서 작업할 수 있습니다. 계정당 최대 10개까지 저장됩니다.</p>
+              <p className="mt-2 text-gray-600">다른 이름으로 저장본을 열고 이어서 작업할 수 있습니다. 계정당 최대 10개까지 저장됩니다.</p>
             </div>
           </div>
 
@@ -116,7 +116,7 @@ export default function DetailProjectsPage() {
               <FolderOpen size={26} />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">저장된 상세페이지가 없습니다.</h2>
-            <p className="mt-2 text-gray-600">편집기에서 임시 저장하면 여기서 다시 열 수 있습니다.</p>
+            <p className="mt-2 text-gray-600">편집기에서 다른 이름으로 저장하면 여기서 다시 열 수 있습니다.</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
