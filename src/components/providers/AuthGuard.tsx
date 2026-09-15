@@ -6,7 +6,7 @@ import { useAuth } from "./AuthProvider";
 import { hasSite1Access } from "@/lib/auth-shared";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
-const APPROVAL_EXEMPT_PATHS = ["/pending"];
+const EXEMPT_PATHS = ["/pending", "/access-denied"];
 const isDevAuthBypass =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
@@ -27,7 +27,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const isApiRoute = pathname.startsWith("/api");
     const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
-    const isApprovalExempt = APPROVAL_EXEMPT_PATHS.some((path) =>
+    const isExemptPath = EXEMPT_PATHS.some((path) =>
       pathname.startsWith(path),
     );
 
@@ -38,17 +38,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const canAccessSite1 = profile?.status === "APPROVED" && hasSite1Access(profile);
+    const isApproved = profile?.status === "APPROVED";
+    const canAccessSite1 = isApproved && hasSite1Access(profile);
 
     if (canAccessSite1) {
-      if (pathname === "/login" || pathname === "/pending") {
+      if (pathname === "/login" || pathname === "/pending" || pathname === "/access-denied") {
         router.push("/dashboard");
       }
       return;
     }
 
-    if (!isApprovalExempt && !isApiRoute) {
-      router.push("/pending");
+    if (!isExemptPath && !isApiRoute) {
+      router.push(isApproved ? "/access-denied" : "/pending");
     }
   }, [pathname, profile, router, status]);
 
@@ -72,7 +73,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     status === "authenticated" &&
     (profile?.status !== "APPROVED" || !hasSite1Access(profile))
   ) {
-    if (pathname !== "/pending") {
+    const allowedPath = profile?.status === "APPROVED" ? "/access-denied" : "/pending";
+    if (pathname !== allowedPath) {
       return null;
     }
   }

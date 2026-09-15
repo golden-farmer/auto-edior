@@ -57,12 +57,24 @@ export default function AdminPage() {
     }
   };
 
-  const updateUser = async (id: string, newStatus?: string, newRole?: string) => {
+  const updateUser = async (
+    id: string,
+    newStatus?: string,
+    newRole?: string,
+    newPlanType?: PlanType,
+    newAppAccess?: AdminUser["app_access"],
+  ) => {
     try {
       const res = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus, role: newRole }),
+        body: JSON.stringify({
+          id,
+          status: newStatus,
+          role: newRole,
+          plan_type: newPlanType,
+          app_access: newAppAccess,
+        }),
       });
       if (res.ok) {
         await fetchUsers();
@@ -70,6 +82,18 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Failed to update user", error);
     }
+  };
+
+  const upgradeUserToPaid = async (id: string) => {
+    const confirmed = window.confirm(
+      "정말로 유료 유저로 변경하시겠습니까?\n현재 사용자는 유료 유저로 변경되며 유료탭으로 이동됩니다.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await updateUser(id, undefined, undefined, "paid", "site1");
   };
 
   const filteredUsers = useMemo(() => {
@@ -149,13 +173,12 @@ export default function AdminPage() {
           />
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[1200px] whitespace-nowrap text-left text-sm">
+          <table className="min-w-[1120px] whitespace-nowrap text-left text-sm">
             <thead className="border-b-2 border-gray-200 bg-gray-50 tracking-wider">
               <tr>
                 <th className="px-6 py-4 font-semibold text-gray-600">이름</th>
                 <th className="px-6 py-4 font-semibold text-gray-600">이메일</th>
                 <th className="px-6 py-4 font-semibold text-gray-600">가입일</th>
-                <th className="px-6 py-4 font-semibold text-gray-600">구분</th>
                 <th className="px-6 py-4 font-semibold text-gray-600">상태</th>
                 <th className="px-6 py-4 font-semibold text-gray-600">권한</th>
                 <th className="px-6 py-4 font-semibold text-gray-600">관리</th>
@@ -168,16 +191,6 @@ export default function AdminPage() {
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4">
                     {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${(user.plan_type ?? "paid") === "paid"
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-orange-100 text-orange-800"
-                        }`}
-                    >
-                      {(user.plan_type ?? "paid") === "paid" ? "유료" : "무료"}
-                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -230,12 +243,20 @@ export default function AdminPage() {
                     >
                       {user.role === "ADMIN" ? "권한 해제" : "관리자 부여"}
                     </button>
+                    {activePlanTab === "free" && (
+                      <button
+                        onClick={() => upgradeUserToPaid(user.id)}
+                        className="rounded bg-blue-500 px-3 py-1 text-white transition hover:bg-blue-600"
+                      >
+                        유료전환
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     {searchQuery ? "검색 결과가 없습니다." : "등록된 사용자가 없습니다."}
                   </td>
                 </tr>

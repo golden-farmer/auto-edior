@@ -18,11 +18,12 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(
-      profile?.status === "APPROVED" && hasSite1Access(profile)
-        ? "/dashboard"
-        : "/pending",
-    );
+    if (profile?.status !== "APPROVED") {
+      router.push("/pending");
+      return;
+    }
+
+    router.push(hasSite1Access(profile) ? "/dashboard" : "/access-denied");
   }, [profile, router, status]);
 
   const handleGoogleLogin = async () => {
