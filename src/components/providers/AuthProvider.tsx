@@ -35,6 +35,9 @@ const devProfile: AppProfile = {
   gemini_api_key: null,
   role: "ADMIN",
   status: "APPROVED",
+  plan_type: "paid",
+  app_access: "site1",
+  upgraded_at: null,
   created_at: new Date(0).toISOString(),
   updated_at: new Date(0).toISOString(),
 };

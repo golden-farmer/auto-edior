@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "./AuthProvider";
+import { hasSite1Access } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 const APPROVAL_EXEMPT_PATHS = ["/pending"];
@@ -37,7 +38,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (profile?.status === "APPROVED") {
+    const canAccessSite1 = profile?.status === "APPROVED" && hasSite1Access(profile);
+
+    if (canAccessSite1) {
       if (pathname === "/login" || pathname === "/pending") {
         router.push("/dashboard");
       }
@@ -47,7 +50,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isApprovalExempt && !isApiRoute) {
       router.push("/pending");
     }
-  }, [pathname, profile?.status, router, status]);
+  }, [pathname, profile, router, status]);
 
   if (isDevAuthBypass) {
     return <>{children}</>;
@@ -65,7 +68,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  if (status === "authenticated" && profile?.status !== "APPROVED") {
+  if (
+    status === "authenticated" &&
+    (profile?.status !== "APPROVED" || !hasSite1Access(profile))
+  ) {
     if (pathname !== "/pending") {
       return null;
     }

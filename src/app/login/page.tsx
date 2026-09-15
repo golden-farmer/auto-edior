@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { hasSite1Access } from "@/lib/auth";
 
 const PRODUCTION_APP_ORIGIN = "https://auto-edior.vercel.app";
 
@@ -17,8 +18,12 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(profile?.status === "APPROVED" ? "/dashboard" : "/pending");
-  }, [profile?.status, router, status]);
+    router.push(
+      profile?.status === "APPROVED" && hasSite1Access(profile)
+        ? "/dashboard"
+        : "/pending",
+    );
+  }, [profile, router, status]);
 
   const handleGoogleLogin = async () => {
     setIsSubmitting(true);
